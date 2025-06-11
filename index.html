@@ -9,18 +9,118 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Cairo', sans-serif;
-            background-color: #f3f4f6; /* Light gray background */
-        }
-        .card-enter-button {
-            transition: all 0.2s ease-in-out;
-        }
-        .card-enter-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
-    </style>
+      body {
+          font-family: 'Cairo', sans-serif;
+          /* Animated subtle background gradient */
+          background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 50%, #e3f2fd 100%);
+          background-size: 200% 200%;
+          animation: backgroundGradientMove 25s ease infinite alternate; /* Slower, more elegant movement */
+          color: #2d3748; /* Darker default text color */
+      }
+
+      @keyframes backgroundGradientMove {
+          0% { background-position: 0% 0%; }
+          100% { background-position: 100% 100%; }
+      }
+
+      /* General fade-in animation for initial load elements */
+      .fade-in {
+          animation: fadeInUp 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; /* Smooth cubic-bezier for a natural feel */
+          opacity: 0;
+          transform: translateY(40px); /* More significant initial drop */
+      }
+
+      @keyframes fadeInUp {
+          to {
+              opacity: 1;
+              transform: translateY(0);
+          }
+      }
+
+      /* Button styling with gradient and refined hover */
+      .card-enter-button {
+          transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); /* Consistent smooth transition */
+          border: none;
+          box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15); /* Softer, deeper initial shadow */
+          background-image: linear-gradient(to right, #007bff, #17a2b8); /* Elegant blue-cyan gradient */
+          font-weight: 700; /* Bolder text for buttons */
+      }
+
+      .card-enter-button:hover {
+          transform: translateY(-5px); /* More noticeable lift on hover */
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3); /* Pronounced shadow on hover */
+          background-image: linear-gradient(to right, #0056b3, #0f7a8b); /* Darker gradient on hover */
+      }
+
+      /* Subject card styling with advanced shadows and hover effects */
+      .subject-card {
+          transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05); /* Multi-layered shadow for depth */
+          border: none; /* No explicit border, shadow handles the separation */
+          background-color: white;
+          position: relative;
+          overflow: hidden; /* Ensures elements don't spill out during animations */
+          border-radius: 1.5rem; /* More rounded corners for softness */
+          padding: 2.2rem; /* Increased padding for more breathing room */
+      }
+
+      .subject-card:hover {
+          transform: translateY(-15px); /* Significant lift */
+          box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.08); /* Much deeper shadow on hover */
+      }
+
+      /* Special styling for the creator's name: Dynamic Gradient Animation */
+      .creator-name {
+          background: linear-gradient(90deg, #0d47a1, #42a5f5, #673ab7, #ba68c8, #0d47a1); /* Rich, animated gradient */
+          background-size: 400% 100%; /* Make gradient wider than text */
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          color: transparent; /* Ensures the gradient is visible */
+          font-weight: 900; /* Heaviest font weight for supreme impact */
+          font-size: 3.8rem; /* Even larger for prominent display */
+          letter-spacing: 2.5px; /* Enhanced spacing for a grand feel */
+          text-shadow: 
+              0 0 18px rgba(66, 165, 245, 0.7), /* Blue glow */
+              0 0 35px rgba(103, 58, 183, 0.5), /* Purple glow */
+              0 0 50px rgba(66, 165, 245, 0.3); /* Fading blue glow */
+          display: inline-block;
+          animation: gradientColorShift 8s ease infinite alternate; /* Custom, continuous color shift animation */
+          line-height: 1.2; /* Ensures proper vertical spacing */
+      }
+
+      @keyframes gradientColorShift {
+          0% { background-position: 0% 50%; }
+          100% { background-position: 100% 50%; }
+      }
+
+      /* Progress bar styling */
+      .progress-bar-fill {
+          background-image: linear-gradient(to right, #60a5fa, #3b82f6); /* Soft blue gradient for progress */
+          transition: width 0.6s ease-out; /* Smooth transition for width change */
+      }
+
+      /* Category tags */
+      .category-tag {
+          background-color: #e3f2fd; /* Light blue background for tags */
+          color: #0d47a1; /* Dark blue text for tags */
+          padding: 0.45rem 1.1rem; /* More generous padding */
+          border-radius: 9999px;
+          font-weight: 600;
+          font-size: 0.95rem; /* Slightly larger font size for tags */
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Subtle shadow for tags */
+      }
+
+      /* Adjust header text for better readability */
+      header h1 {
+          font-size: 4.8rem; /* Slightly larger for balance */
+          line-height: 1.1;
+      }
+      header p {
+          font-size: 1.7rem; /* Slightly larger for balance */
+          line-height: 1.5;
+      }
+  </style>
 </head>
 <body class="text-gray-800 antialiased">
 
@@ -31,8 +131,9 @@
                 أهلاً بك في نظام التعلم
             </h1>
             <br>
-            <p class="text-xl md:text-2xl text-gray-600 mt-4">
-              منشئ الموقع المهندس محمد رضا
+            <p class="text-gray-600 mt-4">
+              بفخر وإبداع، يقدّم لكم <br>
+              <span class="creator-name block md:inline-block mt-2 md:mt-0">المهندس محمد رضا</span>
           </p>
           <br>
             <p class="text-xl md:text-2xl text-gray-600 mt-4">
