@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق المذاكرة التفاعلي: التجارة الإلكترونية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Tech Blue & Purple -->
+    <!-- Application Structure Plan: The SPA is structured as a comprehensive interactive quiz platform for "E-commerce" material. The primary goal is to facilitate active learning and self-assessment. The information architecture provides a clear user flow: 1) A 'selection screen' acts as a main dashboard, allowing users to choose specific sections (chapters) for their quiz, clearly organizing the content from the various PDF files. 2) A 'quiz screen' then presents questions one by one, providing immediate feedback and an intuitive navigation (Next button). 3) Finally, a 'results screen' summarizes performance with a score and a visual chart, reinforcing understanding. This structure was chosen to break down complex study material into manageable, interactive modules, enhancing user engagement and comprehension, which is more effective than static document review. -->
+    <!-- Visualization & Content Choices: Report Info: Multiple choice and True/False questions across E-commerce, E-marketing, E-payment, E-government, and Electronic Signature topics. Goal: To create an engaging and effective self-study tool. Viz/Presentation: Questions are displayed as clear text. Options are presented as interactive buttons. Immediate visual feedback (green for correct, red for incorrect) is provided on button clicks. A Chart.js doughnut chart visually summarizes the quiz results (correct vs. incorrect answers), offering a quick, impactful performance overview. Interaction: Users interact by clicking section buttons to start quizzes, clicking answer options, and using a 'Next' button to advance. All state management and dynamic content updates are handled with vanilla JavaScript. Justification: This interactive format promotes active recall and immediate reinforcement, which are key for exam preparation. The doughnut chart provides a simple yet effective visual summary of performance. Library/Method: Vanilla JS for core logic and UI manipulation, Chart.js for canvas-based data visualization. CONFIRMING NO SVG/Mermaid. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #e0f2f7; /* Light blue background */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 380px; /* Max width for chart container */
+            margin-left: auto;
+            margin-right: auto;
+            height: 380px; /* Fixed height for consistency */
+            max-height: 50vh; /* Responsive height */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-answer {
+            transition: all 0.2s ease-in-out;
+            border: 1px solid #cbd5e1; /* Light border */
+        }
+        .btn-answer:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            border-color: #6d28d9; /* Purple accent on hover */
+        }
+        .btn-correct {
+            background-color: #16a34a !important; /* Darker Green */
+            color: white !important;
+            border-color: #15803d !important;
+        }
+        .btn-incorrect {
+            background-color: #dc2626 !important; /* Darker Red */
+            color: white !important;
+            border-color: #b91c1c !important;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div id="app-container" class="min-h-screen container mx-auto px-4 py-8 flex flex-col items-center justify-center">
+
+        <header class="text-center mb-8 w-full max-w-4xl">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-indigo-700">تطبيق المذاكرة التفاعلي</h1>
+            <p class="text-gray-600 mt-3 text-xl">مادة التجارة الإلكترونية</p>
+        </header>
+
+        <main id="main-content" class="w-full max-w-4xl bg-white rounded-3xl shadow-2xl p-6 md:p-10">
+            
+            <div id="selection-screen">
+                <h2 class="text-2xl md:text-3xl font-bold mb-8 text-center text-purple-700">اختر الفصل للمذاكرة</h2>
+                <div id="section-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                    <!-- Section buttons will be dynamically inserted here by JS -->
+                </div>
+            </div>
+
+            <div id="quiz-screen" class="hidden">
+                <div id="quiz-header" class="flex flex-col sm:flex-row justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                     <h2 id="quiz-title" class="text-xl md:text-2xl font-bold text-purple-700 mb-2 sm:mb-0"></h2>
+                     <p id="progress-text" class="text-gray-600 font-semibold text-lg bg-indigo-50 px-4 py-2 rounded-full shadow-inner"></p>
+                </div>
+                <div id="question-container" class="mb-8">
+                    <p id="question-text" class="text-xl md:text-2xl font-semibold text-center min-h-[140px] flex items-center justify-center bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm"></p>
+                </div>
+                <div id="options-container" class="space-y-4">
+                </div>
+                <div id="navigation-container" class="mt-10 text-center">
+                    <button id="next-button" onclick="nextQuestion()" class="hidden bg-indigo-600 text-white font-bold py-3 px-14 rounded-full shadow-lg hover:bg-indigo-700 transform hover:scale-105 transition-all duration-300">
+                        السؤال التالي
+                    </button>
+                </div>
+            </div>
+
+            <div id="results-screen" class="hidden text-center">
+                <h2 class="text-3xl md:text-4xl font-bold mb-6 text-indigo-800">النتيجة النهائية</h2>
+                <p id="score-text" class="text-2xl text-gray-800 font-bold mb-2"></p>
+                <p id="score-percentage" class="text-xl text-gray-600 mb-8"></p>
+                <div class="chart-container">
+                    <canvas id="results-chart"></canvas>
+                </div>
+                 <div class="mt-10 flex flex-col sm:flex-row justify-center gap-4">
+                    <button onclick="restartQuiz()" class="bg-indigo-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-indigo-700 transform hover:scale-105 transition-all duration-300">
+                        إعادة الاختبار
+                    </button>
+                    <button onclick="backToHome()" class="bg-gray-200 text-gray-800 font-bold py-3 px-8 rounded-full shadow-md hover:bg-gray-300 transform hover:scale-105 transition-all duration-300">
+                        العودة للفصول
+                    </button>
+                </div>
+            </div>
+
+        </main>
+        
+        <footer class="text-center mt-10 text-gray-500 text-sm">
+            <p>تطبيق تفاعلي مصمم لمساعدتك في مراجعة مادة التجارة الإلكترونية.</p>
+        </footer>
+    </div>
+
+    <script>
+        const allQuizzes = {
+            lec1_ecommerce_overview: {
+                title: 'مقدمة التجارة الإلكترونية',
+                mcq: [
+                    { q: "ما هو تعريف التجارة الإلكترونية؟", o: ["نظام يتيح بيع وشراء السلع والخدمات فقط", "نظام يتيح عبر الإنترنت حركات بيع وشراء السلع والخدمات والمعلومات", "نظام يعتمد على البيع والشراء التقليدي مع إضافة الإنترنت", "نظام يختص فقط ببيع المعلومات"], a: 1 },
+                    { q: "أي من التالي لا يعتبر من أنواع التجارة الإلكترونية المذكورة؟", o: ["التجارة الإلكترونية بين القطاع الخاص والمستهلك (B2C)", "التجارة الإلكترونية بين وحدات القطاع الخاص (B2B)", "التجارة الإلكترونية بين مستهلك وحكومة (C2G)", "التجارة الإلكترونية بين مستهلك ومستهلك آخر (C2C)"], a: 2 },
+                    { q: "من أبرز فوائد التجارة الإلكترونية للشركات:", o: ["زيادة مصاريف التشغيل", "تسويق أكثر فعالية وأرباح أكثر", "تقليل التواصل مع الشركاء", "زيادة الحاجة للموظفين"], a: 1 },
+                    { q: "أي من التالي يعد من العوائق التقنية أمام التجارة الإلكترونية؟", o: ["انخفاض أجور اليد العاملة", "صعوبة المنافسة في الاقتصاد العالمي", "البنية التحتية للإنترنت ما زالت غير كافية", "ازدياد قوة المستهلك"], a: 2 }
+                ]
+            },
+            lec3_ecommerce_concepts: {
+                title: 'مفاهيم التجارة الإلكترونية وأمنها',
+                mcq: [
+                    { q: "تعتمد التجارة الإلكترونية على عدة علوم مختلفة منها:", o: ["علم الفلك", "علم النفس", "علم الأحياء", "علم الآثار"], a: 1 },
+                    { q: "ما هو المحل الإلكتروني؟", o: ["محل فيزيائي كبير", "كل منصة الكترونية يمكن للتاجر من خلالها عرض سلعة وتقديم خدماته أو بيعها", "بناية ضخمة للتجارة", "سوق تقليدي يتم فيه البيع والشراء"], a: 1 },
+                    { q: "أي من التالي لا يُعتبر من مزايا التجارة الإلكترونية العامة؟", o: ["لا يوجد استخدام للوثائق الورقية", "توفير نفقات الاتصال التقليدية", "خفض تكاليف النقل والتخزين", "زيادة عمولات الوسطاء"], a: 3 },
+                    { q: "ما هي إحدى وسائل الدفع الإلكتروني المذكورة؟", o: ["النقود الورقية", "النقود الإلكترونية", "الشيكات اليدوية", "الدفع بالذهب"], a: 1 },
+                    { q: "ما هو أبرز تحدي يواجه التجارة الإلكترونية من حيث الأمن؟", o: ["سهولة استنساخ البطاقات الائتمانية", "صعوبة إقناع الزبائن بمسائل الأمن والوثوقية والمصداقية", "انخفاض تكلفة تطوير نظام التجارة الإلكترونية", "عدم توفر قوانين لتنظيم التجارة الإلكترونية"], a: 1 }
+                ],
+                tf: [
+                    { q: "التجارة الإلكترونية هي فقط بيع وشراء عبر الإنترنت.", a: false },
+                    { q: "الأسواق الإلكترونية هي بالضرورة بنايات مادية كبيرة.", a: false },
+                    { q: "التجارة الإلكترونية توفر الكثير من عمولات الوسطاء.", a: true },
+                    { q: "إحدى احتياطات الأمن عند استخدام التجارة الإلكترونية هي مراجعة كشف بطاقة الائتمان شهرياً.", a: true }
+                ]
+            },
+            lec4_emarketing: {
+                title: 'مزايا ومراحل التسويق الإلكتروني',
+                mcq: [
+                    { q: "يتيح التسويق الإلكتروني للمنظمات مهما صغر حجمها القدرة على:", o: ["التركيز على الأسواق المحلية فقط", "الدخول إلى الأسواق العالمية والوصول إلى المستهلك", "زيادة تكاليف الإعلان", "تقليل التفاعل مع الزبائن"], a: 1 },
+                    { q: "ما هي إحدى مراحل دورة التسويق الإلكتروني؟", o: ["مرحلة الإنتاج الفعلي", "مرحلة الإعداد", "مرحلة التوزيع المادي", "مرحلة خدمة ما بعد البيع التقليدية"], a: 1 },
+                    { q: "ما هي العملية الأساسية في التسويق عبر الإنترنت التي تتعلق بالمنتجات والخدمات؟", o: ["التسعير", "المكان أو السوق", "المنتج", "الترويج"], a: 2 },
+                    { q: "في مرحلة 'اختبار العرض' في دورة التسويق الإلكتروني، يتم:", o: ["إنتاج المنتج بكميات كبيرة", "إجراء الاختبارات الأولية لفاعلية العرض", "تحديد السعر النهائي للمنتج", "اختيار قنوات التوزيع"], a: 1 }
+                ],
+                tf: [
+                    { q: "التسويق الإلكتروني يختزل طول سلاسل التوريد.", a: true },
+                    { q: "لا يمكن للمنظمات الصغيرة الاستفادة من التسويق الإلكتروني للدخول إلى الأسواق العالمية.", a: false },
+                    { q: "في مرحلة \"المراقبة والتقييم\" من دورة التسويق الإلكتروني، يتم تجاهل التغذية العكسية من المستهلكين.", a: false }
+                ]
+            },
+            lec5_epayment: {
+                title: 'أنظمة الدفع الإلكتروني',
+                mcq: [
+                    { q: "ما هي إحدى خصائص نجاح طرق الدفع الإلكتروني؟", o: ["ارتفاع رسوم الحركات", "صعوبة الاستخدام", "مقاومة الخداع", "عدم وجود قوانين"], a: 2 },
+                    { q: "أي من التالي لا يُعد من أنواع بطاقات الدفع الإلكتروني المذكورة؟", o: ["بطاقات الرصيد (Credit cards)", "بطاقات الشحن (Charge cards)", "بطاقات الائتمان الذهبية", "بطاقات الحساب الجاري (Debit cards)"], a: 2 },
+                    { q: "في عملية معالجة بطاقات الدفع عبر الإنترنت، ما هي المرحلة التي يتم فيها تحويل المبلغ من حساب المشتري إلى حساب البائع؟", o: ["مرحلة التفويض", "مرحلة التسديد (Settlement)", "مرحلة التحقق", "مرحلة الشحن"], a: 1 },
+                    { q: "ما هو دور 'مزود خدمة الدفع (PSP)'؟", o: ["التحكم في أسعار المنتجات", "ربط نظام التجارة الإلكترونية الخاص بالتاجر بالبنك المستخدم", "صيانة أجهزة الحاسوب للزبائن", "إصدار بطاقات الائتمان"], a: 1 },
+                    { q: "ما هي الأداة التي تستخدم في مقاومة عمليات الاحتيال عبر بطاقات الدفع، وتقوم بالمقارنة بين العنوان المدخل من قبل الزبون مع معلومات العنوان لدى البنك المصدر؟", o: ["نظام التحقق من التاريخ", "الطرق اليدوية", "نظام التحقق من العنوان (Address Verification System - AVS)", "نظام التحقق من الرمز البريدي"], a: 2 }
+                ],
+                tf: [
+                    { q: "السرية هي إحدى خصائص نجاح طرق الدفع الإلكتروني.", a: true },
+                    { q: "بطاقات الرصيد (Credit cards) تسمح لحامليها بالقيام بعمليات شراء ضمن سقف محدد مسبقاً.", a: true },
+                    { q: "في مرحلة التفويض، يتم تحويل المبلغ من حساب المشتري إلى البائع.", a: false },
+                    { q: "المعالج (Processor) هو عبارة عن مركز كبير يقوم بمعالجة الحركات والتسديد للتجار.", a: true }
+                ]
+            },
+            lec7_ecommerce_types: {
+                title: 'نماذج أعمال التجارة الإلكترونية',
+                mcq: [
+                    { q: "التجارة التي تتم بين المنظمات والشركات عبر شبكات الحاسوب تُسمى:", o: ["منظمات الأعمال إلى المستهلك (B2C)", "منظمات الأعمال إلى منظمات الأعمال (B2B)", "المستهلك إلى منظمات الأعمال (C2B)", "المستهلك إلى المستهلك (C2C)"], a: 1 },
+                    { q: "أي من التالي يمثل نموذج التجارة الإلكترونية الذي تقدم فيه منظمات الأعمال منتجاتها إلى منظمات أعمال أخرى، والتي بدورها تقوم بعرض المنتجات إلى زبائنها؟", o: ["B2C", "C2B", "B2B2C", "C2C"], a: 2 },
+                    { q: "في نموذج 'نموذج تسمية التسعيرة'، من يقوم بوضع السعر؟", o: ["البائع", "المشتري", "الوسيط", "الحكومة"], a: 1 },
+                    { q: "أي من التالي يعتبر من فوائد التجارة الإلكترونية على المنظمات؟", o: ["زيادة وقت تنفيذ المنتج", "تقليل كلفة الاتصال", "صعوبة الوصول للعالم كله", "زيادة تكاليف التشغيل"], a: 1 },
+                    { q: "ما هي إحدى المعوقات التقنية للتجارة الإلكترونية؟", o: ["زيادة المسؤولية الاجتماعية", "قلة المعايير العالمية بالنسبة للسرية", "تغير طبيعة القوى العاملة", "انخفاض كلفة تكنولوجيا المعلومات"], a: 1 }
+                ],
+                tf: [
+                    { q: "التجارة الإلكترونية عبر الاتصالات اللاسلكية تعتمد على تحديد مكان الزبون.", a: true },
+                    { q: "ويب 2.0 (Web 2.0) هي الجيل الأول من خدمات الإنترنت.", a: false },
+                    { q: "الاقتصاد الرقمي هو الاقتصاد الذي يعتمد على التكنولوجيا الرقمية.", a: true },
+                    { q: "من ضغوطات الاقتصاد والسوق في التجارة الإلكترونية، المنافسة الضعيفة.", a: false }
+                ]
+            },
+            lec_e_government: {
+                title: 'الحكومة الإلكترونية',
+                mcq: [
+                    { q: "ما هو التعريف الأساسي للحكومة الإلكترونية؟", o: ["استخدام الأجهزة الحكومية لتقديم الخدمات بالطرق التقليدية فقط", "استخدام تقنية المعلومات من قبل الأجهزة الحكومية لتقديم الخدمات بأسلوب أسرع وأدق", "تقليل كفاءة عمل الأجهزة الحكومية", "زيادة البيروقراطية في التعاملات الحكومية"], a: 1 },
+                    { q: "أي من التالي يعد من أهداف الحكومة الإلكترونية؟", o: ["زيادة تكاليف الإجراءات الحكومية", "تقليل الوعي المعلوماتي", "سرعة إنجاز الإجراءات ما بين الدوائر الحكومية إلكترونياً", "صعوبة التواصل بين المواطنين والجهات الحكومية"], a: 2 },
+                    { q: "أي من التالي ليس من عوامل نجاح الحكومة الإلكترونية؟", o: ["توفير الميزانيات المناسبة للتمويل", "تعقيد الإجراءات المطلوبة للحصول على الخدمات", "توفير البنية التحتية والاتصالات", "استقطاب القوى البشرية المتخصصة في تقنية المعلومات"], a: 1 },
+                    { q: "ما هي المرحلة الأولى من مراحل تطبيق الحكومة الإلكترونية؟", o: ["جعل التعاملات تتم مباشرة على الشبكة", "التفاعل عبر توسيع نطاق المشاركة المدنية", "النشر", "التقييم المستمر"], a: 2 },
+                    { q: "في مرحلة 'النشر' من تطبيق الحكومة الإلكترونية، يجب مراعاة:", o: ["نشر معلومات غير ذات قيمة", "توحيد تصاميم المواقع الحكومية", "الاعتماد على لغة واحدة فقط", "عدم التحديث الدائم للموقع"], a: 1 }
+                ],
+                tf: [
+                    { q: "الحكومة الإلكترونية هي الحل السحري لجميع المشاكل الإدارية التي تعاني منها الدول.", a: false },
+                    { q: "في مرحلة التفاعل في الحكومة الإلكترونية، يتم التأكد من أن المعلومات والنماذج المنشورة في المواقع هي قيد الاستخدام وتلقى قبولاً لدى المواطنين.", a: true },
+                    { q: "توفير الإمكانات البشرية المدربة لتقديم الدعم المستمر للمستخدمين ليس ضرورياً في مرحلة جعل التعاملات تتم مباشرة على الشبكة.", a: false }
+                ]
+            },
+            lec_electronic_signature: {
+                title: 'التوقيع الإلكتروني',
+                mcq: [
+                    { q: "ما هو مفهوم التوقيع الإلكتروني ذو الحجية القانونية في القانون المصري؟", o: ["أرقام ورموز عشوائية", "صورة التوقيع العادي بواسطة السكانر", "التوقيع بواسطة القلم الإلكتروني على أجهزة الحاسب", "جزء صغير مشفر بأعلى درجات التشفير يضاف إلى رسالة إلكترونية"], a: 3 },
+                    { q: "أي من التالي لا يُعد توقيعاً إلكترونياً ذا حجية قانونية؟", o: ["صورة التوقيع العادي بواسطة السكانر", "التوقيع باستخدام البطاقة الذكية", "التوقيع المعتمد على شهادة تصديق إلكتروني", "التوقيع الذي يخضع للضوابط الفنية والأمنية المذكورة في القانون"], a: 0 },
+                    { q: "ما هو الوسيط المستخدم لإنشاء التوقيع الإلكتروني ذو الحجية القانونية في القانون المصري؟", o: ["قرص صلب", "الورق العادي", "البطاقة الذكية", "الهاتف المحمول فقط"], a: 2 },
+                    { q: "ما هي إحدى الخصائص التي يحققها التوقيع الإلكتروني وتميزه عن التوقيع اليدوي؟", o: ["سهولة النسخ", "عدم القدرة على الإنكار (Non-Repudiation)", "قلة الخصوصية", "الحاجة إلى الحضور المادي"], a: 1 },
+                    { q: "تلتزم الجهات المرخص لها بتقديم خدمات التوقيع الإلكتروني بـ:", o: ["متطلبات غير محددة", "المتطلبات الفنية والتقنية المذكورة في اللائحة التنفيذية", "القوانين التقليدية فقط", "تجاهل الضوابط الأمنية"], a: 1 }
+                ],
+                tf: [
+                    { q: "التوقيع الإلكتروني الرقمي يثبت الشخص الموقع فقط، ولا يثبت الوثيقة محل التوقيع.", a: false },
+                    { q: "التحقق من صحة التوقيع العادي يتم تلقائياً أثناء عملية التوقيع.", a: false },
+                    { q: "التوقيع الإلكتروني يمكن ربطه بخاصية التشفير أوتوماتيكياً.", a: true },
+                    { q: "الخصوصية (Confidentiality) في التوقيع الإلكتروني تعني عدم السماح لأشخاص باستخدام التوقيع الإلكتروني في حين أنهم لا يمتلكون الصلاحيات الكافية.", a: true },
+                    { q: "التحقق من الهوية (Authentication) في التوقيع الإلكتروني يتم عن طريق كلمات السر فقط.", a: false },
+                    { q: "عدم القدرة على الإنكار (Non-Repudiation) يعني عدم قدرة الشخص الموقع إلكترونياً على إنكار قيامه بهذا الفعل.", a: true }
+                ]
+            }
+        };
+
+        let currentSectionId = '';
+        let currentQuestions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let resultsChartInstance = null;
+
+        const selectionScreen = document.getElementById('selection-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultsScreen = document.getElementById('results-screen');
+        const sectionGrid = document.getElementById('section-grid');
+        
+        const quizTitleEl = document.getElementById('quiz-title');
+        const progressTextEl = document.getElementById('progress-text');
+        const questionTextEl = document.getElementById('question-text');
+        const optionsContainerEl = document.getElementById('options-container');
+        const nextButton = document.getElementById('next-button');
+        const scoreTextEl = document.getElementById('score-text');
+        const scorePercentageEl = document.getElementById('score-percentage');
+
+        function initializeApp() {
+            Object.keys(allQuizzes).forEach(key => {
+                const section = allQuizzes[key];
+                const button = document.createElement('button');
+                button.textContent = section.title;
+                button.className = "w-full bg-white text-indigo-700 font-bold py-6 px-2 rounded-xl shadow-md border border-gray-200 hover:bg-indigo-50 hover:border-indigo-600 hover:shadow-lg transition-all duration-300 text-center text-lg";
+                button.onclick = () => startQuiz(key);
+                sectionGrid.appendChild(button);
+            });
+        }
+
+        function startQuiz(sectionId) {
+            currentSectionId = sectionId;
+            const mcq = allQuizzes[sectionId].mcq || [];
+            const tf = allQuizzes[sectionId].tf || [];
+            currentQuestions = [...mcq.map(q => ({...q, type: 'mcq'})), ...tf.map(q => ({...q, type: 'tf'}))];
+            
+            // Shuffle questions to ensure variety in quizzes
+            currentQuestions.sort(() => Math.random() - 0.5);
+
+            currentQuestionIndex = 0;
+            score = 0;
+
+            showScreen('quiz-screen');
+            nextButton.classList.add('hidden'); // Hide next button until answer is selected
+
+            quizTitleEl.textContent = allQuizzes[sectionId].title;
+            displayQuestion();
+        }
+        
+        function showScreen(screenId) {
+            selectionScreen.classList.add('hidden');
+            quizScreen.classList.add('hidden');
+            resultsScreen.classList.add('hidden');
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        function displayQuestion() {
+            if (currentQuestionIndex >= currentQuestions.length) {
+                showResults();
+                return;
+            }
+            const questionData = currentQuestions[currentQuestionIndex];
+            progressTextEl.textContent = `السؤال ${currentQuestionIndex + 1} من ${currentQuestions.length}`;
+            questionTextEl.textContent = questionData.q;
+            optionsContainerEl.innerHTML = ''; // Clear previous options
+            
+            if (questionData.type === 'mcq') {
+                optionsContainerEl.className = "space-y-4"; // Tailwind class for spacing
+                questionData.o.forEach((option, index) => {
+                    const button = document.createElement('button');
+                    button.innerHTML = `<span class="bg-purple-100 text-purple-700 font-bold px-3 py-1 rounded-md ml-3 text-base">${String.fromCharCode(1575 + index)}</span> ${option}`; // Arabic alphabet for options
+                    button.className = "btn-answer w-full text-right p-4 bg-gray-50 rounded-lg hover:bg-purple-50 transition-colors duration-200 text-lg shadow-sm";
+                    button.onclick = () => selectAnswer(index, questionData.a, button);
+                    optionsContainerEl.appendChild(button);
+                });
+            } else { // trueFalse
+                optionsContainerEl.className = "grid grid-cols-1 sm:grid-cols-2 gap-4"; // Grid for True/False options
+                const options = [{text: 'صح', val: true}, {text: 'خطأ', val: false}];
+                options.forEach((option) => {
+                    const button = document.createElement('button');
+                    button.textContent = option.text;
+                    button.className = "btn-answer w-full p-4 bg-gray-50 rounded-lg hover:bg-purple-50 transition-colors duration-200 text-xl font-bold shadow-sm";
+                    button.onclick = () => selectAnswer(option.val, questionData.a, button);
+                    optionsContainerEl.appendChild(button);
+                });
+            }
+        }
+        
+        function selectAnswer(userAnswer, correctAnswer, clickedButton) {
+            const isCorrect = userAnswer === correctAnswer;
+            if (isCorrect) {
+                score++;
+            }
+            
+            // Disable all options and show correct/incorrect feedback
+            const buttons = optionsContainerEl.getElementsByTagName('button');
+            Array.from(buttons).forEach((button) => {
+                button.disabled = true; // Disable all buttons after selection
+
+                // Determine the option value for comparison (index for MCQ, boolean for TF)
+                let optionValue;
+                if(currentQuestions[currentQuestionIndex].type === 'mcq') {
+                    // Extract option index from button's innerHTML (e.g., 'أ')
+                    const optionChar = button.querySelector('span')?.textContent.trim();
+                    const optionIndex = optionChar ? optionChar.charCodeAt(0) - 1575 : -1;
+                    optionValue = optionIndex;
+                } else {
+                    optionValue = (button.textContent === 'صح'); // True/False specific
+                }
+
+                if (optionValue === correctAnswer) {
+                    button.classList.add('btn-correct'); // Mark correct answer green
+                } else if (button === clickedButton) {
+                    button.classList.add('btn-incorrect'); // Mark user's incorrect answer red
+                }
+            });
+            
+            nextButton.classList.remove('hidden'); // Show next button
+        }
+
+        function nextQuestion() {
+            currentQuestionIndex++;
+            displayQuestion();
+        }
+
+        function showResults() {
+            showScreen('results-screen');
+
+            const percentage = Math.round((score / currentQuestions.length) * 100);
+            scoreTextEl.textContent = `نتيجتك: ${score} من ${currentQuestions.length}`;
+            scorePercentageEl.textContent = `بنسبة ${percentage}%`;
+
+            // Render Chart.js doughnut chart
+            const ctx = document.getElementById('results-chart').getContext('2d');
+            if(resultsChartInstance) {
+                resultsChartInstance.destroy(); // Destroy previous chart instance if exists
+            }
+            resultsChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['إجابات صحيحة', 'إجابات خاطئة'],
+                    datasets: [{
+                        data: [score, currentQuestions.length - score],
+                        backgroundColor: ['#16a34a', '#dc2626'], // Green for correct, Red for incorrect
+                        borderColor: ['#ffffff'], // White border for separation
+                        borderWidth: 5,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%', // Make it a doughnut chart
+                    plugins: {
+                        legend: {
+                            position: 'bottom', // Legend at the bottom
+                            labels: {
+                                padding: 20,
+                                font: {
+                                    family: "'Cairo', sans-serif",
+                                    size: 16
+                                },
+                                color: '#4b5563' // Text color for legend
+                            }
+                        },
+                        tooltip: {
+                            bodyFont: { family: "'Cairo', sans-serif" },
+                            titleFont: { family: "'Cairo', sans-serif" }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function restartQuiz() {
+            startQuiz(currentSectionId); // Restart the current quiz
+        }
+
+        function backToHome() {
+            showScreen('selection-screen'); // Go back to section selection
+        }
+
+        // Initialize the application on page load
+        initializeApp();
+
+    </script>
+</body>
+</html>

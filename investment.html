@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق المذاكرة التفاعلي: أساسيات الاستثمار</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Investment Green & Gold -->
+    <!-- Application Structure Plan: The SPA is designed as a learning and self-assessment platform for "Investment Fundamentals". The architecture prioritizes user engagement and clear information hierarchy. It starts with a 'Welcome/Selection Screen' that serves as a content hub, allowing users to select different sections (chapters/MCQ sets). Once a section is chosen, a 'Quiz Screen' dynamically loads and presents questions one by one, providing immediate feedback. A 'Results Screen' concludes each quiz with a visual summary using a Chart.js doughnut chart. This modular, interactive design was selected to transform static PDF content into a dynamic, engaging, and effective study experience, facilitating deeper understanding and retention. -->
+    <!-- Visualization & Content Choices: Report Info: Multiple choice and True/False questions across various sections of investment fundamentals, including definitions, market types, risks, and economic impacts. Goal: To provide an interactive tool for self-assessment and reinforcement of investment concepts. Viz/Presentation: Questions are presented as clear text within structured cards. Options are interactive buttons. Immediate visual feedback (green for correct, red for incorrect) is provided upon selection. A Chart.js doughnut chart on the results screen effectively visualizes the proportion of correct vs. incorrect answers, offering a quick performance summary. Interaction: Users navigate by selecting quiz sections, clicking answer buttons, and advancing questions with a 'Next' button. All quiz logic, state management, and DOM manipulation are handled with vanilla JavaScript. Justification: This interactive format makes studying more active and effective than passive reading. The visual summary helps users quickly gauge their understanding. Library/Method: Vanilla JS for application logic and DOM manipulation, Chart.js for data visualization using canvas. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #f7f7f7; /* Light gray */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 380px; /* Max width for chart container */
+            margin-left: auto;
+            margin-right: auto;
+            height: 380px; /* Fixed height for consistency */
+            max-height: 50vh; /* Responsive height */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-answer {
+            transition: all 0.2s ease-in-out;
+            border: 1px solid #e5e7eb; /* Light gray border */
+        }
+        .btn-answer:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            border-color: #d9b954; /* Gold accent on hover */
+        }
+        .btn-correct {
+            background-color: #008000 !important; /* Darker Green */
+            color: white !important;
+            border-color: #006400 !important;
+        }
+        .btn-incorrect {
+            background-color: #cc0000 !important; /* Darker Red */
+            color: white !important;
+            border-color: #990000 !important;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div id="app-container" class="min-h-screen container mx-auto px-4 py-8 flex flex-col items-center justify-center">
+
+        <header class="text-center mb-8 w-full max-w-4xl">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-green-700">تطبيق المذاكرة التفاعلي</h1>
+            <p class="text-gray-600 mt-3 text-xl">مادة أساسيات الاستثمار</p>
+        </header>
+
+        <main id="main-content" class="w-full max-w-4xl bg-white rounded-3xl shadow-2xl p-6 md:p-10">
+            
+            <div id="selection-screen">
+                <h2 class="text-2xl md:text-3xl font-bold mb-8 text-center text-green-600">اختر مجموعة الأسئلة للمذاكرة</h2>
+                <div id="section-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                    <!-- Section buttons will be dynamically inserted here by JS -->
+                </div>
+            </div>
+
+            <div id="quiz-screen" class="hidden">
+                <div id="quiz-header" class="flex flex-col sm:flex-row justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                     <h2 id="quiz-title" class="text-xl md:text-2xl font-bold text-green-700 mb-2 sm:mb-0"></h2>
+                     <p id="progress-text" class="text-gray-600 font-semibold text-lg bg-yellow-50 px-4 py-2 rounded-full shadow-inner"></p>
+                </div>
+                <div id="question-container" class="mb-8">
+                    <p id="question-text" class="text-xl md:text-2xl font-semibold text-center min-h-[140px] flex items-center justify-center bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm"></p>
+                </div>
+                <div id="options-container" class="space-y-4">
+                </div>
+                <div id="navigation-container" class="mt-10 text-center">
+                    <button id="next-button" onclick="nextQuestion()" class="hidden bg-green-600 text-white font-bold py-3 px-14 rounded-full shadow-lg hover:bg-green-700 transform hover:scale-105 transition-all duration-300">
+                        السؤال التالي
+                    </button>
+                </div>
+            </div>
+
+            <div id="results-screen" class="hidden text-center">
+                <h2 class="text-3xl md:text-4xl font-bold mb-6 text-green-800">النتيجة النهائية</h2>
+                <p id="score-text" class="text-2xl text-gray-800 font-bold mb-2"></p>
+                <p id="score-percentage" class="text-xl text-gray-600 mb-8"></p>
+                <div class="chart-container">
+                    <canvas id="results-chart"></canvas>
+                </div>
+                 <div class="mt-10 flex flex-col sm:flex-row justify-center gap-4">
+                    <button onclick="restartQuiz()" class="bg-green-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-green-700 transform hover:scale-105 transition-all duration-300">
+                        إعادة الاختبار
+                    </button>
+                    <button onclick="backToHome()" class="bg-gray-200 text-gray-800 font-bold py-3 px-8 rounded-full shadow-md hover:bg-gray-300 transform hover:scale-105 transition-all duration-300">
+                        العودة للصفحة الرئيسية
+                    </button>
+                </div>
+            </div>
+
+        </main>
+        
+        <footer class="text-center mt-10 text-gray-500 text-sm">
+            <p>تطبيق تفاعلي مصمم لمساعدتك في مراجعة مادة أساسيات الاستثمار.</p>
+        </footer>
+    </div>
+
+    <script>
+        const allQuizzes = {
+            mcq2: {
+                title: 'MCQ 2',
+                mcq: [
+                    { q: "ما هو الهدف الرئيسي من الاستثمار؟", o: ["تحقيق أرباح سريعة", "زيادة القيمة والنمو مع مرور الوقت", "الاحتفاظ بالأصول لفترة قصيرة", "تجنب المخاطر تماما"], a: 1 },
+                    { q: "ما هو الفرق الرئيسي بين الاستثمار والتداول؟", o: ["الاستثمار يركز على المدى الطويل، بينما التداول يركز على المدى القصير", "التداول أقل خطورة من الاستثمار", "الاستثمار والتداول متماثلان", "التداول يعتمد على التحليل الأساسي فقط"], a: 0 },
+                    { q: "ما هو العنصر الأساسي الذي يؤثر على أسعار الأسهم في سوق الأوراق المالية؟", o: ["العرض والطلب", "السياسات الحكومية فقط", "الاستثمارات العقارية", "عدد الأسهم المصدرة"], a: 0 },
+                    { q: "أي من العوامل التالية تؤثر بشكل مباشر على سوق الأوراق المالية؟", o: ["السياسة المالية والنقدية", "أسعار العقارات فقط", "عدد الشركات المدرجة", "حجم الودائع البنكية"], a: 0 },
+                    { q: "ما هي أحد المخاطر الرئيسية للاستثمار؟", o: ["عدم وجود مخاطر", "تغيرات السوق وتقلب الأسعار", "ضمان العوائد", "ارتفاع أسعار الفائدة فقط"], a: 1 },
+                    { q: "ما هو تعريف الأسهم؟", o: ["سندات دين على الشركة", "حصة ملكية في الشركة", "وديعة مصرفية", "أداة تمويل حكومي"], a: 1 },
+                    { q: "ما هو السوق الثانوية؟", o: ["سوق يتم فيه إصدار الأوراق المالية لأول مرة", "السوق الذي يتم فيه تداول الأوراق المالية بعد إصدارها", "السوق الذي يتم فيه بيع العقارات", "سوق للاستثمارات طويلة الأجل فقط"], a: 1 },
+                    { q: "أي من الأدوات التالية يعتبر من أدوات سوق رأس المال؟", o: ["أذون الخزانة", "الأسهم والسندات", "الودائع قصيرة الأجل", "القروض البنكية"], a: 1 },
+                    { q: "ما هو الغرض من التحليل الأساسي في الاستثمار؟", o: ["تحليل بيانات السوق لتوقع الأسعار المستقبلية", "تحليل البيانات المالية للشركة وتقييم قيمتها الحقيقية", "التنبؤ بحركة الأسعار باستخدام الرسوم البيانية", "متابعة الأخبار فقط"], a: 1 },
+                    { q: "ما هو الهدف من تنويع المحفظة الاستثمارية؟", o: ["تقليل المخاطر", "زيادة الأرباح بسرعة", "الاستثمار في أصل واحد فقط", "تجاهل تحركات السوق"], a: 0 }
+                ]
+            },
+            mcq3: {
+                title: 'MCQ 3',
+                mcq: [
+                    { q: "ما هي إحدى ميزات الاستثمار طويل الأجل؟", o: ["تحقيق أرباح سريعة", "زيادة القيمة مع مرور الوقت", "انخفاض المخاطر إلى الصفر", "عدم الحاجة إلى متابعة السوق"], a: 1 },
+                    { q: "أي من العوامل التالية يحدد أسعار الأسهم في السوق؟", o: ["التوقعات المستقبلية للشركة", "عدد الأسهم المصدرة فقط", "حجم التداول اليومي فقط", "قرارات الأفراد فقط"], a: 0 },
+                    { q: "ما هو الدور الأساسي لسوق الأوراق المالية؟", o: ["توفير السيولة للمستثمرين", "تحقيق أرباح مضمونة", "تحديد أسعار ثابتة للأسهم", "تجنب المخاطر المالية"], a: 0 },
+                    { q: "ما هو الفرق بين السندات والأسهم؟", o: ["السندات تمثل حصة في الشركة، والأسهم تمثل دينا", "الأسهم تمثل حصة ملكية، والسندات تمثل دينا على الشركة", "السندات توفر أرباحًا أعلى من الأسهم دائما", "لا يوجد فرق بينهما"], a: 1 },
+                    { q: "أي من العوامل التالية يزيد من المخاطر الاستثمارية؟", o: ["تنويع المحفظة الاستثمارية", "الاستثمار في أصل واحد فقط", "الاحتفاظ بالاستثمارات لفترة طويلة", "تحليل الأسواق"], a: 1 },
+                    { q: "ما هو التحليل الفني؟", o: ["تحليل البيانات المالية للشركة", "تحليل الرسوم البيانية والتغيرات السعرية", "تحليل الاقتصاد الكلي", "دراسة التشريعات الحكومية"], a: 1 },
+                    { q: "لماذا يعتبر الاستثمار في الأسهم أكثر خطورة من السندات؟", o: ["لأن العوائد مضمونة", "لأن أسعار الأسهم تتغير باستمرار", "لأن الشركات دائما تحقق خسائر", "لأن الأسهم غير قابلة للتداول"], a: 1 },
+                    { q: "ما هو العائد على الاستثمار (ROI)؟", o: ["الفرق بين الدخل والنفقات", "النسبة المئوية للأرباح مقارنة برأس المال المستثمر", "مجموع الأرباح السنوية", "إجمالي قيمة المحفظة"], a: 1 },
+                    { q: "أي من الأسواق التالية تعتبر سوقا أولية؟", o: ["البورصة", "سوق الإصدارات الجديدة", "سوق التداول", "سوق العقارات"], a: 1 },
+                    { q: "ما هو أثر رفع سعر الفائدة على سوق الأسهم؟", o: ["يزيد من أسعار الأسهم", "يقلل من أسعار الأسهم", "ليس له تأثير", "يزيد من الطلب على الأسهم"], a: 1 }
+                ]
+            },
+            mcq4: {
+                title: 'MCQ 4',
+                mcq: [
+                    { q: "ما هو الدور الأساسي للبنك المركزي في الاقتصاد؟", o: ["تنظيم السيولة والسيطرة على التضخم", "إدارة الشركات المدرجة في البورصة", "تحديد أسعار الأسهم", "بيع وشراء العقارات"], a: 0 },
+                    { q: "أي من الاستثمارات التالية يعتبر الأكثر أمانا؟", o: ["الأسهم", "السندات الحكومية", "العقارات", "العملات المشفرة"], a: 1 },
+                    { q: "ما هو المقصود بمخاطر السوق؟", o: ["مخاطر مرتبطة بأداء شركة معينة", "مخاطر ناتجة عن تقلبات السوق العامة", "مخاطر ناتجة عن تغير سعر الصرف فقط", "مخاطر متعلقة بالتضخم فقط"], a: 1 },
+                    { q: "كيف يمكن للمستثمر تقليل المخاطر؟", o: ["الاستثمار في أصل واحد فقط", "تنويع المحفظة الاستثمارية", "عدم الاستثمار نهائيا", "شراء الأسهم فقط"], a: 1 },
+                    { q: "ما هو الهدف الرئيسي من التحليل الأساسي؟", o: ["تحديد القيمة العادلة للشركة", "التنبؤ بتحركات الأسعار قصيرة الأجل", "تحليل الأنماط السعرية", "متابعة الأخبار فقط"], a: 0 },
+                    { q: "أي من الخيارات التالية يمثل مخاطرة أعلى؟", o: ["السندات الحكومية", "الأسهم الصغيرة الناشئة", "الودائع البنكية", "السندات المضمونة"], a: 1 },
+                    { q: "ما هو المقصود بالسيولة في الاستثمار؟", o: ["سهولة تحويل الأصل إلى نقد", "زيادة الأرباح بسرعة", "الاستثمار طويل الأجل", "توفير النقد في المنزل"], a: 0 },
+                    { q: "ما هي إحدى استراتيجيات الاستثمار الشائعة؟", o: ["المضاربة على الأسهم فقط", "تنويع المحفظة الاستثمارية", "شراء الأصول وقت الذروة", "عدم متابعة الأخبار الاقتصادية"], a: 1 },
+                    { q: "ما هو الفرق بين الأسهم العادية والأسهم الممتازة؟", o: ["الأسهم العادية تمنح أولوية في الأرباح", "الأسهم الممتازة تمنح أولوية في توزيع الأرباح", "لا يوجد فرق بينهما", "الأسهم العادية تحقق عوائد أعلى دائما"], a: 1 },
+                    { q: "كيف تؤثر السياسة النقدية على الأسواق المالية؟", o: ["من خلال التحكم في أسعار الفائدة", "من خلال إصدار الأسهم", "من خلال شراء الشركات", "من خلال خفض عدد المستثمرين"], a: 0 }
+                ]
+            },
+            mcq5: {
+                title: 'MCQ 5',
+                mcq: [
+                    { q: "ما هي إحدى فوائد الاستثمار في السندات؟", o: ["عوائد غير مضمونة", "عوائد ثابتة ومنتظمة", "لا يمكن تداولها في السوق", "مخاطر مرتفعة جدا"], a: 1 },
+                    { q: "ماذا يحدث عندما تنخفض أسعار الفائدة؟", o: ["ترتفع أسعار الأسهم", "تنخفض أسعار الأسهم", "تبقى الأسعار ثابتة", "لا يوجد تأثير"], a: 0 },
+                    { q: "ما هو السوق المالي؟", o: ["مكان لتداول الأسهم والسندات", "مكان لتبادل العملات فقط", "سوق عقارية", "محفظة استثمارية"], a: 0 },
+                    { q: "ما هو الفرق بين الاستثمار والمضاربة؟", o: ["المضاربة تعتمد على الأجل الطويل", "الاستثمار يهدف إلى العوائد طويلة الأجل والمضاربة تعتمد على العوائد السريعة", "المضاربة تخلو من المخاطر", "لا يوجد فرق بينهما"], a: 1 },
+                    { q: "ما هي إحدى طرق تحليل الأسهم؟", o: ["التحليل الفني", "التحليل الجغرافي", "التحليل البيئي", "تحليل العقارات"], a: 0 },
+                    { q: "أي من الخيارات التالية يمكن أن يكون عاملاً مؤثرا على سوق الأسهم؟", o: ["الأوضاع الاقتصادية", "عدد الفروع المصرفية", "ارتفاع درجات الحرارة", "عدد سكان المدينة"], a: 0 },
+                    { q: "ما هو المؤشر المالي الذي يستخدم لقياس أداء السوق؟", o: ["مؤشر الأسهم", "عدد الأسهم المصدرة", "حجم السيولة في البنك", "عدد الشركات في السوق"], a: 0 },
+                    { q: "كيف تؤثر معدلات التضخم على الاستثمارات؟", o: ["تؤدي إلى تأكل قيمة العوائد المالية", "ليس لها تأثير", "تزيد من العائد الحقيقي", "تخفض أسعار الفائدة"], a: 0 },
+                    { q: "ما هو العامل الذي يؤثر في قرار شراء السهم؟", o: ["الأرباح المتوقعة", "عدد الأسهم المصدرة", "نوع الشركة فقط", "لون شعار الشركة"], a: 0 },
+                    { q: "ما هي وظيفة الوسيط المالي؟", o: ["توفير سيولة للسوق", "إدارة الشركات المدرجة", "تنفيذ أوامر البيع والشراء", "إصدار الأسهم"], a: 2 }
+                ]
+            },
+            mcq6: {
+                title: 'MCQ 6',
+                mcq: [
+                    { q: "ما العلاقة بين الادخار وسوق الأوراق المالية في الاقتصاد القومي؟", o: ["علاقة ضعيفة ومحدودة", "علاقة مباشرة وقوية", "علاقة عشوائية", "لا توجد علاقة"], a: 1 },
+                    { q: "ما الوظيفة الأساسية لسوق الأوراق المالية في سياق الادخار؟", o: ["تخفيض أسعار الأسهم", "تعبئة وتنمية المدخرات", "تحديد قيمة العملة", "رفع الضرائب"], a: 1 },
+                    { q: "ما المقصود بالادخار من منظور اقتصادي؟", o: ["تقليل الإنفاق فقط", "الفرق بين الدخل والاستهلاك", "تجميع الضرائب", "التبرع للمشروعات"], a: 1 },
+                    { q: "من أبرز مصادر الادخار في الاقتصاد المصري؟", o: ["القطاع الحكومي", "القطاع العائلي", "البنوك الأجنبية", "الهيئات العامة"], a: 1 },
+                    { q: "أي العوامل التالية تؤثر على قرار المدخر في توظيف مدخراته في سوق الأوراق المالية؟", o: ["موقع البورصة فقط", "الوعي الاستثماري والعائد المتوقع", "أسعار العملات", "الضرائب على الرواتب"], a: 1 },
+                    { q: "يعتبر ارتفاع معدل الادخار شرطًا لـ:", o: ["زيادة الاستهلاك", "خفض التضخم", "تحقيق النمو الاقتصادي", "تحسين التجارة الخارجية"], a: 2 },
+                    { q: "من شروط إقبال المدخرين على سوق الأوراق المالية:", o: ["قلة العائد المتوقع", "ارتفاع المخاطر", "توافر الشفافية والمعلومات", "عدم وجود بدائل استثمارية"], a: 2 },
+                    { q: "كلما زادت كفاءة سوق الأوراق المالية:", o: ["انخفضت الاستثمارات", "زادت القدرة على جذب المدخرات", "انخفضت الثقة في السوق", "قل حجم التداول"], a: 1 },
+                    { q: "لماذا يعد الادخار حجر الزاوية في أي خطة تنموية؟", o: ["لأنه يزيد الاستهلاك", "لأنه يستخدم في الإعلانات", "لأنه يمول المشروعات", "لأنه يقلل الدين العام"], a: 2 },
+                    { q: "من نتائج العلاقة بين سوق الأوراق المالية والمدخرين:", o: ["ارتفاع الضرائب", "توجيه الادخار للاستثمار الإنتاجي", "تخفيض سعر الفائدة", "اختفاء السيولة"], a: 1 },
+                    { q: "من المكونات الأساسية لتعريف الادخار؟", o: ["تحديد مستوى البطالة", "التفرقة بين الربح والخسارة", "الفرق بين الدخل والاستهلاك", "العلاقة بين الدولار والجنيه"], a: 2 },
+                    { q: "ما فائدة توجيه المدخرات نحو سوق الأوراق المالية؟", o: ["تجميد رؤوس الأموال", "تنشيط الاقتصاد وتمويل المشروعات", "تقليل العرض النقدي", "زيادة العجز التجاري"], a: 1 },
+                    { q: "السوق التي تسمح بشراء وبيع الأوراق المالية تسمى:", o: ["السوق السوداء", "سوق العقارات", "سوق الأوراق المالية", "سوق العملات"], a: 2 },
+                    { q: "يشترط لتحقيق فاعلية سوق الأوراق المالية في تعبئة الادخار:", o: ["وجود وسطاء معتمدين", "غياب المنافسة", "ضعف الرقابة", "تشجيع الاحتكار"], a: 0 },
+                    { q: "في سياق الاقتصاد المصري، ما أبرز تحدٍ يواجه سوق الأوراق المالية؟", o: ["ضعف الوعي الاستثماري", "كثرة المدخرين", "ارتفاع السيولة", "غياب البنوك"], a: 0 }
+                ]
+            },
+            sec1_4: {
+                title: 'Section 1-4 (مقدمة وأساسيات)',
+                mcq: [
+                    { q: "التداول هو عملية:", o: ["طويلة الأجل", "قصيرة الأجل", "متوسطة الأجل", "لا شيء مما سبق"], a: 1 },
+                    { q: "عملية تهدف لتحقيق النمو التدريجي لرأس المال على المدي البعيد.", o: ["الاستثمار", "البيع والشراء", "الادخار", "لا شيء مما سبق"], a: 0 },
+                    { q: "عملية يتم من خلالها تخصيص الأموال في أصول تتطور وتنمو مع الوقت.", o: ["تحقيق النمو المالي", "تحقيق الأهداف المالية", "توفير الدخل الإضافي", "لا شيء مما سبق"], a: 0 },
+                    { q: "يحقق الاستثمار التوازن المالي عن طريق:", o: ["التنوع في مصادر الدخل", "تعزيز الاستقرار المالي", "تقليل المخاطر المالية", "جميع ما سبق"], a: 3 },
+                    { q: "استثمار الافراد في تطوير مهاراتهم الشخصية وتحسين مستوي التعليم يطلق عليه:", o: ["الاستثمار في السلع", "الاستثمار في العقارات", "الاستثمار في الذات", "الاستثمار في البورصة"], a: 2 }
+                ],
+                tf: [
+                    { q: "يحقق الاستثمار عائد مالي في مدة زمنية قصيرة.", a: false },
+                    { q: "التداول هو وسيلة الربح السريع عن طريق استغلال التقلبات في الأسعار.", a: true },
+                    { q: "المخاطرة في الاستثمار أكبر من المخاطرة في التداول.", a: true },
+                    { q: "لا يؤثر الاستثمار على التخطيط المالي الشخصي.", a: false },
+                    { q: "الاستثمار هو أداة لتحقيق الأهداف المالية المحددة.", a: true },
+                    { q: "لا يعتبر الربح من الأسهم مصدر دخل إضافي.", a: false },
+                    { q: "لا يوجد تأثير للاستثمار على التضخم.", a: false },
+                    { q: "تعتبر عمليات التخطيط والتنويع والتحليل آليات الاستثمار لتحقيق الثراء.", a: true }
+                ]
+            },
+            sec2: {
+                title: 'Section 2 (المفهوم والمخاطر)',
+                mcq: [
+                    { q: "ما هو الهدف الأساسي من الاستثمار؟", o: ["تحقيق الأرباح", "زيادة رأس المال", "تحقيق الاستقرار المالي", "جميع ما سبق"], a: 3 },
+                    { q: "أي من الخيارات التالية يمثل استثمارا طويل الأجل؟", o: ["شراء وبيع الأسهم خلال يوم واحد", "الاستثمار في العقارات", "المضاربة في السوق", "التداول اليومي"], a: 1 },
+                    { q: "ما هي إحدى الطرق الفعالة لتقليل مخاطر الاستثمار؟", o: ["وضع كل الأموال في أصل واحد", "التنويع بين الأصول المختلفة", "الاستثمار بناءً على العواطف", "تجاهل التغيرات الاقتصادية"], a: 1 },
+                    { q: "ما هو الفرق الرئيسي بين الاستثمار والتداول؟", o: ["لا يوجد فرق", "الاستثمار يركز على المدى الطويل بينما التداول يركز على الأرباح السريعة", "التداول لا يتضمن مخاطر", "الاستثمار يقتصر على شراء الأسهم فقط"], a: 1 },
+                    { q: "ما هو العنصر الأكثر أهمية في التحليل الأساسي؟", o: ["متابعة الأخبار فقط", "دراسة القوائم المالية للشركات", "تحليل الرسوم البيانية", "الاعتماد على التوقعات الشخصية"], a: 1 }
+                ],
+                tf: [
+                    { q: "الاستثمار يهدف فقط إلى تحقيق الأرباح السريعة.", a: false },
+                    { q: "يمكن أن يكون الاستثمار قصير الأجل أو طويل الأجل.", a: true },
+                    { q: "المخاطر في الاستثمار تنحصر فقط في خسارة رأس المال.", a: false },
+                    { q: "التداول في الأسواق المالية يعتمد على استراتيجيات مختلفة.", a: true },
+                    { q: "الاستثمار في العقارات يعتبر استثمارًا قصير الأجل.", a: false },
+                    { q: "التنويع هو إحدى الطرق الفعالة لتقليل مخاطر الاستثمار.", a: true },
+                    { q: "سعر الصرف ليس له تأثير على قرارات الاستثمار.", a: false },
+                    { q: "التضخم يمكن أن يؤثر سلبًا على العوائد الاستثمارية.", a: true },
+                    { q: "التحليل الأساسي يعتمد على دراسة الرسوم البيانية فقط.", a: false },
+                    { q: "السياسة النقدية تؤثر على أسعار الفائدة وبالتالي على الاستثمار.", a: true },
+                    { q: "الاستثمار في السلع مثل الذهب يعتبر وسيلة للتحوط ضد التضخم.", a: true },
+                    { q: "السياسة المالية للحكومة ليس لها أي تأثير على الأسواق المالية.", a: false },
+                    { q: "ارتفاع أسعار الفائدة يزيد من جاذبية السندات للمستثمرين.", a: true },
+                    { q: "الأسهم دائما توفر عوائد مضمونة للمستثمرين.", a: false },
+                    { q: "إدارة المخاطر تعتبر جزءًا مهمًا في عملية الاستثمار الناجح.", a: true }
+                ]
+            },
+            last_sec: {
+                title: 'آخر سكشن (الأدوات والمشتقات)',
+                mcq: [
+                    { q: "أي من الأدوات التالية تعد وسيلة مباشرة لتنمية الادخار من خلال سوق الأوراق المالية؟", o: ["شهادات الإيداع البنكية", "الأسهم والسندات", "حسابات التوفير", "الذهب والمجوهرات"], a: 1 },
+                    { q: "تهدف سوق الأوراق المالية إلى:", o: ["زيادة الاستهلاك", "دعم السياسات الضريبية", "تعبئة المدخرات وتوجيهها للاستثمار", "إصدار النقد"], a: 2 },
+                    { q: "ما الفرق الرئيسي بين الأسهم والسندات؟", o: ["الأسهم تضمن عائدًا ثابتا، السندات لا", "السندات تمثل ملكية، الأسهم تمثل دينا", "الأسهم تمثل ملكية، السندات تمثل دينا", "لا فرق بينهما"], a: 2 },
+                    { q: "من مزايا الاستثمار في الأوراق المالية:", o: ["السيولة المرتفعة", "غياب المخاطر", "العائد الثابت دائما", "الإعفاء الضريبي الكامل"], a: 0 },
+                    { q: "تعد صناديق الاستثمار المشترك خيارًا جيدًا للمدخرين لأنها:", o: ["تتطلب استثمارات ضخمة فقط", "تديرها بنوك مركزية", "توفر تنويعا وتقليلا للمخاطر", "خالية من أية عمولات"], a: 2 },
+                    { q: "الأداة المالية التي تعطي حاملها جزءًا من ملكية الشركة هي:", o: ["السند", "شهادة الإيداع", "السهم", "الكمبيالة"], a: 2 },
+                    { q: "الاستثمار المنتظم في الأوراق المالية يسهم في:", o: ["تآكل الادخار", "زيادة السيولة فقط", "تنمية المدخرات على المدى الطويل", "تجميد الأموال"], a: 2 },
+                    { q: "من الأدوات المالية الحديثة التي تتيح التحوط ضد المخاطر:", o: ["المشتقات المالية", "الأسهم الممتازة", "الصكوك الإسلامية", "السندات الحكومية"], a: 0 },
+                    { q: "العقود المستقبلية تستخدم بشكل أساسي من أجل:", o: ["توزيع الأرباح", "التهرب الضريبي", "التحوط أو المضاربة", "حماية حقوق الملكية"], a: 2 },
+                    { q: "من أنواع المشتقات المالية:", o: ["الأسهم", "السندات", "الخيارات والعقود المستقبلية", "العملات الورقية"], a: 2 },
+                    { q: "الأداة التي تعطي المشتري الحق دون الالتزام في شراء أو بيع أصل مالي:", o: ["العقد الأجل", "عقد الخيارات", "السهم", "السند"], a: 1 },
+                    { q: "لماذا يفضل بعض المستثمرين استخدام المشتقات المالية؟", o: ["لتجنب الأسواق", "لخفض الضرائب", "لإدارة المخاطر وتحقيق أرباح", "لأنها خالية من المخاطر"], a: 2 },
+                    { q: "أي مما يلي يُعد من مزايا سوق الأوراق المالية للمستثمر الفردي؟", o: ["فرض ضرائب إضافية", "إمكان بيع وشراء الأدوات بسهولة", "توفير القروض البنكية", "تقليل فرص التنويع"], a: 1 },
+                    { q: "تعتبر الخيارات Options أداة مناسبة لمن:", o: ["يرغب في عوائد ثابتة", "يسعى للتحوط أو المضاربة", "يريد الادخار طويل الأجل فقط", "لا يتحمل أي نوع من المخاطر"], a: 1 },
+                    { q: "ما الفرق بين العقود الآجلة والعقود المستقبلية؟", o: ["العقود الآجلة تنظم في البورصات، الآجلة لا", "لا يوجد فرق", "الآجلة مرتبطة بالأسهم فقط", "العقود المستقبلية غير قابلة للتداول"], a: 0 },
+                    { q: "أي من هذه الأدوات تناسب المستثمر منخفض المخاطر؟", o: ["الأسهم العادية", "العقود المستقبلية", "السندات الحكومية", "الخيارات المالية"], a: 2 },
+                    { q: "استخدام المشتقات في غير التحوط قد يؤدي إلى:", o: ["أرباح مضمونة", "تقليل الفائدة البنكية", "مخاطر عالية ومضاربات", "زيادة حجم الادخار الآمن"], a: 2 },
+                    { q: "المستثمر طويل الأجل غالباً ما يفضل:", o: ["المضاربة في العقود الآجلة", "الاستثمار في الأسهم أو الصناديق", "الشراء والبيع اليومي", "استخدام الخيارات قصيرة الأجل"], a: 1 },
+                    { q: "ما الهدف من المشتقات المالية؟", o: ["تمثيل حقوق ملكية", "تمويل المشروعات", "إدارة وتقليل المخاطر", "تسهيل الاقتراض"], a: 2 },
+                    { q: "يُعتبر تنويع الاستثمار بين أدوات مالية مختلفة:", o: ["غير مجد", "يزيد المخاطر", "أحد أدوات إدارة المخاطر", "يقلل العائد دوما"], a: 2 }
+                ]
+            }
+        };
+
+        let currentSectionId = '';
+        let currentQuestions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let resultsChartInstance = null;
+
+        const selectionScreen = document.getElementById('selection-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultsScreen = document.getElementById('results-screen');
+        const sectionGrid = document.getElementById('section-grid');
+        
+        const quizTitleEl = document.getElementById('quiz-title');
+        const progressTextEl = document.getElementById('progress-text');
+        const questionTextEl = document.getElementById('question-text');
+        const optionsContainerEl = document.getElementById('options-container');
+        const nextButton = document.getElementById('next-button');
+        const scoreTextEl = document.getElementById('score-text');
+        const scorePercentageEl = document.getElementById('score-percentage');
+
+        function initializeApp() {
+            Object.keys(allQuizzes).forEach(key => {
+                const section = allQuizzes[key];
+                const button = document.createElement('button');
+                button.textContent = section.title;
+                button.className = "w-full bg-white text-green-700 font-bold py-6 px-2 rounded-xl shadow-md border border-gray-200 hover:bg-green-50 hover:border-green-600 hover:shadow-lg transition-all duration-300 text-center text-lg";
+                button.onclick = () => startQuiz(key);
+                sectionGrid.appendChild(button);
+            });
+        }
+
+        function startQuiz(sectionId) {
+            currentSectionId = sectionId;
+            const mcq = allQuizzes[sectionId].mcq || [];
+            const tf = allQuizzes[sectionId].tf || [];
+            currentQuestions = [...mcq.map(q => ({...q, type: 'mcq'})), ...tf.map(q => ({...q, type: 'tf'}))];
+            
+            // Shuffle questions
+            currentQuestions.sort(() => Math.random() - 0.5);
+
+            currentQuestionIndex = 0;
+            score = 0;
+
+            showScreen('quiz-screen');
+            nextButton.classList.add('hidden');
+
+            quizTitleEl.textContent = allQuizzes[sectionId].title;
+            displayQuestion();
+        }
+        
+        function showScreen(screenId) {
+            selectionScreen.classList.add('hidden');
+            quizScreen.classList.add('hidden');
+            resultsScreen.classList.add('hidden');
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        function displayQuestion() {
+            if (currentQuestionIndex >= currentQuestions.length) {
+                showResults();
+                return;
+            }
+            const questionData = currentQuestions[currentQuestionIndex];
+            progressTextEl.textContent = `السؤال ${currentQuestionIndex + 1} من ${currentQuestions.length}`;
+            questionTextEl.textContent = questionData.q;
+            optionsContainerEl.innerHTML = '';
+            
+            if (questionData.type === 'mcq') {
+                optionsContainerEl.className = "space-y-4";
+                questionData.o.forEach((option, index) => {
+                    const button = document.createElement('button');
+                    button.innerHTML = `<span class="bg-yellow-100 text-yellow-700 font-bold px-3 py-1 rounded-md ml-3 text-base">${String.fromCharCode(1575 + index)}</span> ${option}`;
+                    button.className = "btn-answer w-full text-right p-4 bg-gray-50 rounded-lg hover:bg-yellow-50 transition-colors duration-200 text-lg shadow-sm";
+                    button.onclick = () => selectAnswer(index, questionData.a, button);
+                    optionsContainerEl.appendChild(button);
+                });
+            } else { // trueFalse
+                optionsContainerEl.className = "grid grid-cols-1 sm:grid-cols-2 gap-4";
+                const options = [{text: 'صح', val: true}, {text: 'خطأ', val: false}];
+                options.forEach((option) => {
+                    const button = document.createElement('button');
+                    button.textContent = option.text;
+                    button.className = "btn-answer w-full p-4 bg-gray-50 rounded-lg hover:bg-yellow-50 transition-colors duration-200 text-xl font-bold shadow-sm";
+                    button.onclick = () => selectAnswer(option.val, questionData.a, button);
+                    optionsContainerEl.appendChild(button);
+                });
+            }
+        }
+        
+        function selectAnswer(userAnswer, correctAnswer, clickedButton) {
+            const isCorrect = userAnswer === correctAnswer;
+            if (isCorrect) {
+                score++;
+            }
+            
+            const buttons = optionsContainerEl.getElementsByTagName('button');
+            Array.from(buttons).forEach((button) => {
+                button.disabled = true;
+                let optionValue;
+                if(currentQuestions[currentQuestionIndex].type === 'mcq') {
+                    // Extract option index from button's innerHTML (e.g., 'أ')
+                    const optionChar = button.querySelector('span')?.textContent.trim();
+                    const optionIndex = optionChar ? optionChar.charCodeAt(0) - 1575 : -1;
+                    optionValue = optionIndex;
+                } else {
+                    optionValue = (button.textContent === 'صح');
+                }
+
+                if (optionValue === correctAnswer) {
+                    button.classList.add('btn-correct');
+                } else if (button === clickedButton) {
+                    button.classList.add('btn-incorrect');
+                }
+            });
+            
+            nextButton.classList.remove('hidden');
+        }
+
+        function nextQuestion() {
+            currentQuestionIndex++;
+            displayQuestion();
+        }
+
+        function showResults() {
+            showScreen('results-screen');
+
+            const percentage = Math.round((score / currentQuestions.length) * 100);
+            scoreTextEl.textContent = `نتيجتك: ${score} من ${currentQuestions.length}`;
+            scorePercentageEl.textContent = `بنسبة ${percentage}%`;
+
+            const ctx = document.getElementById('results-chart').getContext('2d');
+            if(resultsChartInstance) {
+                resultsChartInstance.destroy();
+            }
+            resultsChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['إجابات صحيحة', 'إجابات خاطئة'],
+                    datasets: [{
+                        data: [score, currentQuestions.length - score],
+                        backgroundColor: ['#008000', '#cc0000'], // Green for correct, Red for incorrect
+                        borderColor: ['#ffffff'],
+                        borderWidth: 5,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                font: {
+                                    family: "'Cairo', sans-serif",
+                                    size: 16
+                                },
+                                color: '#4b5563'
+                            }
+                        },
+                        tooltip: {
+                            bodyFont: { family: "'Cairo', sans-serif" },
+                            titleFont: { family: "'Cairo', sans-serif" }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function restartQuiz() {
+            startQuiz(currentSectionId);
+        }
+
+        function backToHome() {
+            showScreen('selection-screen');
+        }
+
+        // Initialize the application
+        initializeApp();
+
+    </script>
+</body>
+</html>

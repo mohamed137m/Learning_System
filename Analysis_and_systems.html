@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق المذاكرة التفاعلي: تحليل ونظم</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Modern Blues and Greys -->
+    <!-- Application Structure Plan: The SPA is structured as a comprehensive interactive quiz platform for "Systems Analysis" material. The primary goal is to facilitate active learning and self-assessment. The information architecture provides a clear user flow: 1) A 'selection screen' acts as a main dashboard, allowing users to choose specific sections (chapters) for their quiz, clearly organizing the content from the various PDF files. 2) A 'quiz screen' then presents questions one by one, providing immediate feedback and an intuitive navigation (Next button). 3) Finally, a 'results screen' summarizes performance with a score and a visual chart, reinforcing understanding. This structure was chosen to break down complex study material into manageable, interactive modules, enhancing user engagement and comprehension, which is more effective than static document review. -->
+    <!-- Visualization & Content Choices: Report Info: Multiple choice and True/False questions across 10 sections of Systems Analysis. Goal: To create an engaging and effective self-study tool. Viz/Presentation: Questions are displayed as clear text. Options are presented as interactive buttons. Immediate visual feedback (green for correct, red for incorrect) is provided on button clicks. A Chart.js doughnut chart visually summarizes the quiz results (correct vs. incorrect answers), offering a quick, impactful performance overview. Interaction: Users interact by clicking section buttons to start quizzes, clicking answer options, and using a 'Next' button to advance. All state management and dynamic content updates are handled with vanilla JavaScript. Justification: This interactive format promotes active recall and immediate reinforcement, which are key for exam preparation. The doughnut chart provides a simple yet effective visual summary of performance. Library/Method: Vanilla JS for core logic and UI manipulation, Chart.js for canvas-based data visualization. CONFIRMING NO SVG/Mermaid. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #f8fafc; /* Light blue-gray background */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 380px; /* Max width for chart container */
+            margin-left: auto;
+            margin-right: auto;
+            height: 380px; /* Fixed height for consistency */
+            max-height: 50vh; /* Responsive height */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-answer {
+            transition: all 0.2s ease-in-out;
+            border: 1px solid #e2e8f0; /* Light border */
+        }
+        .btn-answer:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            border-color: #6366f1; /* Accent color on hover */
+        }
+        .btn-correct {
+            background-color: #10b981 !important; /* Green */
+            color: white !important;
+            border-color: #059669 !important;
+        }
+        .btn-incorrect {
+            background-color: #ef4444 !important; /* Red */
+            color: white !important;
+            border-color: #dc2626 !important;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div id="app-container" class="min-h-screen container mx-auto px-4 py-8 flex flex-col items-center justify-center">
+
+        <header class="text-center mb-8 w-full max-w-4xl">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-blue-800">تطبيق المذاكرة التفاعلي</h1>
+            <p class="text-gray-600 mt-3 text-xl">مادة تحليل وتصميم النظم</p>
+        </header>
+
+        <main id="main-content" class="w-full max-w-4xl bg-white rounded-3xl shadow-2xl p-6 md:p-10">
+            
+            <div id="selection-screen">
+                <h2 class="text-2xl md:text-3xl font-bold mb-8 text-center text-blue-700">اختر الفصل للمذاكرة</h2>
+                <div id="section-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                    <!-- Section buttons will be dynamically inserted here by JS -->
+                </div>
+            </div>
+
+            <div id="quiz-screen" class="hidden">
+                <div id="quiz-header" class="flex flex-col sm:flex-row justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                     <h2 id="quiz-title" class="text-xl md:text-2xl font-bold text-blue-700 mb-2 sm:mb-0"></h2>
+                     <p id="progress-text" class="text-gray-600 font-semibold text-lg bg-blue-50 px-4 py-2 rounded-full shadow-inner"></p>
+                </div>
+                <div id="question-container" class="mb-8">
+                    <p id="question-text" class="text-xl md:text-2xl font-semibold text-center min-h-[140px] flex items-center justify-center bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm"></p>
+                </div>
+                <div id="options-container" class="space-y-4">
+                </div>
+                <div id="navigation-container" class="mt-10 text-center">
+                    <button id="next-button" onclick="nextQuestion()" class="hidden bg-blue-600 text-white font-bold py-3 px-14 rounded-full shadow-lg hover:bg-blue-700 transform hover:scale-105 transition-all duration-300">
+                        السؤال التالي
+                    </button>
+                </div>
+            </div>
+
+            <div id="results-screen" class="hidden text-center">
+                <h2 class="text-3xl md:text-4xl font-bold mb-6 text-blue-800">النتيجة النهائية</h2>
+                <p id="score-text" class="text-2xl text-gray-800 font-bold mb-2"></p>
+                <p id="score-percentage" class="text-xl text-gray-600 mb-8"></p>
+                <div class="chart-container">
+                    <canvas id="results-chart"></canvas>
+                </div>
+                 <div class="mt-10 flex flex-col sm:flex-row justify-center gap-4">
+                    <button onclick="restartQuiz()" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-blue-700 transform hover:scale-105 transition-all duration-300">
+                        إعادة الاختبار
+                    </button>
+                    <button onclick="backToHome()" class="bg-gray-200 text-gray-800 font-bold py-3 px-8 rounded-full shadow-md hover:bg-gray-300 transform hover:scale-105 transition-all duration-300">
+                        العودة للفصول
+                    </button>
+                </div>
+            </div>
+
+        </main>
+        
+        <footer class="text-center mt-10 text-gray-500 text-sm">
+            <p>تطبيق تفاعلي مصمم لمساعدتك في مراجعة مادة تحليل وتصميم النظم.</p>
+        </footer>
+    </div>
+
+    <script>
+        const allQuizzes = {
+            s1: {
+                title: 'Section 1: مفاهيم الأنظمة',
+                mcq: [
+                    { q: "ما هو تعريف النظام؟", o: ["مجموعة من العناصر غير المرتبطة ببعضها", "مجموعة من العناصر والأجزاء المترابطة والمتكاملة لتحقيق هدف معين", "عملية تعتمد على العشوائية في التنفيذ", "نظام برمجي فقط بدون أي عناصر مادية"], a: 1 },
+                    { q: "أي من الخصائص التالية لا تُعد من خصائص النظم؟", o: ["التفاعل مع البيئة", "العشوائية في تحقيق الأهداف", "التنظيم الذاتي", "التصويب الذاتي"], a: 1 },
+                    { q: "ماذا يعني 'التفاعل مع البيئة' في النظام؟", o: ["عدم التأثر بالمحيط الخارجي", "ارتباط النظام بمكونات داخلية فقط", "تأثر النظام وتأثيره بالبيئة المحيطة به", "عدم الحاجة لأي مدخلات خارجية"], a: 2 },
+                    { q: "يشير التنظيم الذاتي في النظم إلى:", o: ["قدرة النظام على تحقيق التوازن الداخلي تلقائيا", "تعديل النظام لعناصره دون الحاجة إلى مدخلات", "عدم الحاجة إلى أي تغييرات داخلية", "الاعتماد على التوجيه الخارجي فقط"], a: 0 },
+                    { q: "أي من العبارات التالية تصف 'التصويب الذاتي' في النظم؟", o: ["يتطلب تدخلاً بشريًا مستمرًا لضبط الأداء", "يقوم النظام بتعديل نفسه تلقائيًا للحفاظ على التوازن", "يعتمد فقط على المدخلات الأولية دون تعديل", "نظام لا يتكيف مع التغيرات"], a: 1 },
+                    { q: "ما هو الهدف الأساسي لأي نظام؟", o: ["العمل بشكل مستقل دون أي تفاعل", "تحقيق وظيفة محددة وفقًا لأهدافه", "تجميع البيانات دون معالجة", "ضمان عدم التغيير في بيئته"], a: 1 },
+                    { q: "أي من الخيارات التالية يُعد مثالاً على 'التفاعل مع البيئة' في الأنظمة؟", o: ["نظام مغلق لا يتأثر بالعوامل الخارجية", "نظام يتكيف مع تغيرات السوق والاحتياجات", "نظام يعمل بنفس الكفاءة بغض النظر عن المدخلات", "نظام يعتمد فقط على برمجيات داخلية دون تحديث"], a: 1 },
+                    { q: "أي من الخصائص التالية تساعد الأنظمة في التكيف مع التغيرات؟", o: ["الجمود وعدم المرونة", "التنظيم الذاتي والتصويب الذاتي", "العشوائية في العمليات", "الانعزال عن البيئة الخارجية"], a: 1 },
+                    { q: "ما الذي يُميز النظام عن مجموعة من العناصر غير المرتبطة؟", o: ["ترابط العناصر وتكاملها لتحقيق هدف معين", "احتواء النظام على أكبر عدد من المكونات", "عدم الحاجة إلى أي مدخلات خارجية", "عدم تأثر النظام بالبيئة"], a: 0 },
+                    { q: "عندما يقوم النظام بتعديل أدائه تلقائيًا للحفاظ على الاستقرار، يُسمى ذلك ............", o: ["التفاعل مع البيئة", "التصويب الذاتي", "العشوائية في التشغيل", "ضعف التكيف"], a: 1 }
+                ]
+            },
+            s2: {
+                title: 'Section 2: خصائص الأنظمة',
+                mcq: [
+                    { q: "أي من الخيارات التالية يُعد مثالاً على 'التنظيم الذاتي'؟", o: ["شركة تقوم بتغيير سياساتها تلقائيًا بناءً على السوق", "نظام يعمل بنفس الطريقة بغض النظر عن الظروف", "جهاز يحتاج إلى تدخل خارجي لإعادة التشغيل", "منظمة لا تستجيب لأي تغيرات خارجية"], a: 0 },
+                    { q: "أي من العبارات التالية صحيحة عن الأنظمة؟", o: ["جميع الأنظمة معزولة تماما عن بيئتها", "الأنظمة تتفاعل مع البيئة وتعدل سلوكها عند الحاجة", "لا تحتاج الأنظمة إلى أي عمليات تصحيحية", "لا يوجد نظام يحتوي على هدف محدد"], a: 1 },
+                    { q: "في النظم، ما الذي يعنيه 'هدف النظام'؟", o: ["وجود غرض أو نتيجة يسعى النظام إلى تحقيقها", "تشغيل النظام بدون أي غاية واضحة", "تحقيق الربح فقط دون أهداف أخرى", "تجميع البيانات فقط دون معالجتها"], a: 0 },
+                    { q: "أي من العوامل التالية يمكن أن تؤثر على أداء النظام؟", o: ["التغيرات البيئية", "ثبات المدخلات فقط", "عدم الحاجة إلى عمليات تصحيحية", "الانعزال التام عن العوامل الخارجية"], a: 0 },
+                    { q: "عندما يكون للنظام القدرة على تعديل أدائه للحفاظ على استقراره تلقائيا، فإن ذلك يُعرف ...........", o: ["التفاعل مع البيئة", "التنظيم الذاتي", "الجمود التشغيلي", "عدم التكيف"], a: 1 },
+                    { q: "ما هو العنصر الأساسي في أي نظام؟", o: ["عدم وجود أي ارتباط بين مكوناته", "التكامل بين العناصر لتحقيق هدف معين", "العمل بدون أي قواعد محددة", "تجاهل تأثير البيئة المحيطة"], a: 1 },
+                    { q: "لماذا يعتبر 'التفاعل مع البيئة' أمراً مهماً في الأنظمة؟", o: ["لأنه يسمح للنظام بالعمل بشكل منعزل", "لأنه يساعد النظام على التكيف مع التغيرات الخارجية", "لأنه يمنع النظام من إجراء أي تعديلات", "لأنه يقلل من كفاءة النظام"], a: 1 },
+                    { q: "ماذا يحدث إذا لم يكن للنظام 'تصويب ذاتي'؟", o: ["سيستمر في العمل بكفاءة دون الحاجة لأي تعديلات", "قد يفقد توازنه ويصبح أقل فاعلية مع مرور الوقت", "سيعمل بشكل مستقل عن أي مؤثرات خارجية", "لن يحتاج إلى أي عمليات ضبط أو تحسين"], a: 1 },
+                    { q: "عندما يواجه النظام مشكلة ويقوم بتعديل نفسه لحلها تلقائيًا، فإن هذه العملية تُعرف ...........", o: ["الجمود التشغيلي", "التصويب الذاتي", "ضعف الاستجابة", "العشوائية في التشغيل"], a: 1 },
+                    { q: "أي من الخيارات التالية يُعد مثالاً على نظام يتمتع بالخصائص المذكورة في المحاضرة؟", o: ["نظام بنكي يقوم بتحليل سلوك العملاء وضبط خدماته تلقائيا", "نظام جامد لا يتغير بغض النظر عن المتغيرات", "منظمة لا تمتلك أي أهداف واضحة", "نظام لا يحتاج إلى تحسين أو تصحيح"], a: 0 }
+                ]
+            },
+            s3: {
+                title: 'Section 3: أنواع وتصنيفات النظم',
+                mcq: [
+                    { q: "أي من التالي يُعتبر مثالاً على النظام المغلق؟", o: ["البنك الإلكتروني", "آلة الطباعة الخطية", "تطبيق الهاتف الذكي", "منصة التعلم الإلكتروني"], a: 1 },
+                    { q: "ما هو التصنيف الصحيح للنظام الذي لا يستجيب للمتغيرات البيئية؟", o: ["النظام المتكيف", "النظام غير المتكيف", "النظام المفتوح", "النظام المستقر"], a: 1 },
+                    { q: "أي من الأنظمة التالية يتميز بأنه يمكن التنبؤ بتصرفاته بدقة؟", o: ["النظام البسيط", "النظام المحتمل", "النظام المحدد", "النظام غير المتكيف"], a: 2 },
+                    { q: "النظام الذي يحتوي على عدد كبير من التفاعلات المتبادلة بين مكوناته يُسمى:", o: ["النظام البسيط", "النظام المتشابك", "النظام المفتوح", "النظام المغلق"], a: 1 },
+                    { q: "أي من التالي يُعتبر دورًا أساسيا لمحلل النظم؟", o: ["برمجة التطبيقات", "تطوير الأجهزة المادية", "دراسة العلاقات داخل النظام", "صيانة الشبكات"], a: 2 },
+                    { q: "النظام الذي يتأثر ويتفاعل مع البيئة المحيطة يُعرف ...............", o: ["النظام المفتوح", "النظام المغلق", "النظام البسيط", "النظام المحدد"], a: 0 },
+                    { q: "عندما يتمكن النظام من تعديل نفسه بناءً على التغيرات في بيئته، فإنه يُعتبر:", o: ["نظامًا مستقرًا", "نظامًا متكيفا", "نظامًا مغلقًا", "نظامًا بسيطًا"], a: 1 },
+                    { q: "أي من العوامل التالية ليس من خصائص الأنظمة المعقدة؟", o: ["تداخل المكونات", "صعوبة التفسير", "وضوح العلاقات الداخلية", "الحاجة إلى تحليل متعمق"], a: 2 },
+                    { q: "أي من العوامل التالية يُستخدم في تحليل النظم؟", o: ["تحديد المدخلات والمخرجات", "تجاهل العوامل الخارجية", "إهمال العلاقات بين المكونات", "التركيز على الأجهزة فقط"], a: 0 },
+                    { q: "ما هو الهدف الأساسي من تحليل النظم؟", o: ["تحسين أداء النظام", "زيادة التعقيد", "تقليل كفاءة النظام", "استبدال النظام تمامًا"], a: 0 }
+                ],
+                tf: [
+                    { q: "النظام المفتوح لا يتأثر بالبيئة المحيطة به.", a: false },
+                    { q: "يمكن توقع جميع العمليات المستقبلية في النظام المحتمل بدقة تامة.", a: false },
+                    { q: "الأنظمة المتكيفة تقوم بتعديل نفسها بناءً على التغيرات في البيئة.", a: true },
+                    { q: "محلل النظم مسؤول فقط عن تصميم النظام وليس عن دراسته أو تطويره.", a: false },
+                    { q: "النظام المغلق لا يتفاعل مع البيئة المحيطة به.", a: true },
+                    { q: "كل الأنظمة المتشابكة معقدة، ولكن ليس كل الأنظمة المعقدة متشابكة.", a: true },
+                    { q: "تحليل النظم يهدف إلى تحسين الأداء وإيجاد حلول للمشكلات داخل النظام.", a: true },
+                    { q: "النظام غير المتكيف قادر على الاستجابة بسرعة للتغيرات في البيئة.", a: false },
+                    { q: "يمكن اعتبار النظام الحاسوبي البسيط مثالاً على نظام معقد.", a: false },
+                    { q: "النظم المغلقة هي الأكثر شيوعًا في البيئات الديناميكية.", a: false }
+                ]
+            },
+            s4: {
+                title: 'Section 4: دورة حياة تطوير النظام وأدوات التحليل',
+                mcq: [
+                    { q: "أي من الخطوات التالية تأتي أولا في دورة حياة تطوير النظام؟", o: ["تنفيذ النظام", "تطوير البرامج", "تحليل البدائل", "تعريف المشكلة"], a: 3 },
+                    { q: "أي من الأدوات التالية تُستخدم لجمع البيانات أثناء تحليل النظام؟", o: ["المخططات الانسيابية", "المقابلات", "الاستبيانات", "جميع ما سبق"], a: 3 },
+                    { q: "ما الغرض الأساسي من مخططات تدفق العمليات؟", o: ["تحديد الجدوى الاقتصادية للنظام", "توثيق تدفق البيانات والعمليات داخل النظام", "اختبار النظام بعد تطويره", "تحسين أداء البرمجيات"], a: 1 },
+                    { q: "أي من المخططات التالية يُستخدم لتوضيح التسلسل الهرمي للمدخلات والعمليات والمخرجات؟", o: ["مخططات تدفق البيانات", "HIPO", "جداول القرار", "شجرة القرارات"], a: 1 },
+                    { q: "أي من الأدوات التالية تُستخدم لتمثيل تدفق البيانات داخل النظام؟", o: ["مخططات HIPO", "جداول القرار", "مخططات تدفق البيانات", "شجرة القرارات"], a: 2 },
+                    { q: "أي من الأدوات التالية يُستخدم لتمثيل خطوات تنفيذ العمليات بشكل مرئي؟", o: ["جداول القرار", "مخططات تدفق البيانات", "خرائط تدفق الإجراءات", "ب، ج معا"], a: 2 },
+                    { q: "أي من المعايير التالية يُستخدم لتقييم الأنظمة؟", o: ["الترتيب", "التتابع", "التحكم في البيانات", "جميع ما سبق"], a: 2 },
+                    { q: "أي من الأساليب التالية يُستخدم في تحليل النظم؟", o: ["HIPO", "VTOC", "IPO", "جميع ما سبق"], a: 3 },
+                    { q: "أي من التالي يُعتبر جزءًا من دراسة الجدوى للنظام؟", o: ["تحليل البيانات", "تطوير البرامج", "تقييم الجدوى الاقتصادية", "تنفيذ النظام"], a: 2 },
+                    { q: "أي مما يلي يُستخدم لإنشاء جدول محتويات مرئي للنظام؟", o: ["HIPO", "VTOC", "IPO", "Nassi-Schneiderman"], a: 1 }
+                ]
+            },
+            s5: {
+                title: 'Section 5: خرائط التدفق وأدوات التصميم',
+                mcq: [
+                    { q: "خرائط ناسي - شنيدرمان تم استخدامها في:", o: ["البرامج الرسومية", "التصميم البنائي", "قواعد البيانات", "الشبكات"], a: 1 },
+                    { q: "أحد الرموز الفريدة المستخدمة في بناء خرائط Nassi-Shneiderman هو:", o: ["While", "If Then - Else", "Switch - Case", "For Loop"], a: 1 },
+                    { q: "خرائط التدفق تُستخدم لتمثيل:", o: ["هيكل البيانات", "تدفق العمليات", "قواعد البيانات", "بنية الملفات"], a: 1 },
+                    { q: "عند رسم خريطة تدفق لحل مشكلة، يتم إدخال بيانات الأمر من:", o: ["ملف المخزون الرئيسي", "ملف العميل السري", "ملف الأسعار الرئيسي", "جميع ما سبق"], a: 0 },
+                    { q: "ما الخطوة الأخيرة في معالجة الفواتير؟", o: ["إدخال البيانات في البرنامج", "طباعة تقرير بالفواتير", "تخزين البيانات يدويا في خزانة الملفات", "تحديث الحسابات المدينة"], a: 3 },
+                    { q: "يتم اختيار المخزون من ملف المخزون الرئيسي باستخدام:", o: ["قاعدة بيانات سحابية", "ملف مخزون على قرص", "سجل يدوي", "مستندات ورقية"], a: 1 },
+                    { q: "أحد أهداف تخزين بيانات الفواتير يدويا هو:", o: ["تسهيل عملية البحث الإلكتروني", "ضمان عدم فقدان البيانات الرقمية", "تقليل الحاجة إلى النسخ الاحتياطي", "تسريع معالجة البيانات"], a: 1 },
+                    { q: "يتم إرسال إشعار تنفيذ الأمر إلى:", o: ["العميل مباشرةً", "موظف الأوامر", "مدير النظام", "قسم المحاسبة"], a: 1 },
+                    { q: "أي من التالي ليس من مكونات خرائط التدفق؟", o: ["مربعات القرار", "الأسهم", "الدوائر", "القوائم المنسدلة"], a: 3 },
+                    { q: "عند استخدام شريط الفواتير الآلي، يتم:", o: ["تخزين البيانات يدويا", "تحديث الحسابات المدينة تلقائيا", "إدخال البيانات يدويا مرة أخرى", "إنشاء تقارير شهرية فقط"], a: 1 }
+                ]
+            },
+            s6: {
+                title: 'Section 6: مستويات المعلومات وتوثيق النظم',
+                mcq: [
+                    { q: "من المستويات التي تعبر عن مستويات المعلومات في المنظمة:", o: ["أسلوب القمة - القاع البنائية", "جمع البيانات وتحليلها", "توثيق النظم", "الأداء الإداري"], a: 0 },
+                    { q: "من الأساليب التي تستخدم في جمع البيانات وتحليلها:", o: ["أسلوب القمة - القاع البنائية", "أسلوب الهيكل", "أسلوب الحلول الوسط", "أسلوب الأوامر"], a: 2 },
+                    { q: "من أنواع المشكلات المتعلقة بالعمل:", o: ["المشكلات الفنية فقط", "المشكلات الإدارية فقط", "المشكلات الفنية والإدارية", "المشكلات التقنية فقط"], a: 2 },
+                    { q: "إحدى الطرق الأساسية المستخدمة لتحليل المشكلات هي:", o: ["الإبداع العشوائي", "خرائط التدفق", "توثيق المشكلات يدويًا", "تجاهل المشكلات"], a: 1 },
+                    { q: "الهدف الرئيسي من توثيق النظم:", o: ["تسهيل اتخاذ القرارات", "زيادة التعقيد الإداري", "تقليل الإنتاجية", "إخفاء المعلومات"], a: 0 }
+                ],
+                tf: [
+                    { q: "يتم تصنيف المعلومات في المنظمة إلى مستويات مختلفة.", a: true },
+                    { q: "لا يمكن استخدام تحليل البيانات لحل المشكلات التنظيمية.", a: false },
+                    { q: "يساعد التوثيق الجيد للنظم في تحسين كفاءة العمل.", a: true },
+                    { q: "يساهم تحليل البيانات في اتخاذ قرارات إدارية أفضل.", a: true },
+                    { q: "كل المشكلات في العمل هي مشكلات فنية فقط.", a: false }
+                ]
+            },
+            s7: {
+                title: 'Section 7: تحليل المشكلات',
+                mcq: [
+                    { q: "تستخدم ........... لإعادة بناء وتحليل النظم والإجراءات يدوياً وهي أيضاً تستخدم عدداً محدوداً من الرموز.", o: ["المخطط العام المادي", "الإجراءات المكتوبة", "HIPO", "خرائط التدفق"], a: 3 },
+                    { q: "إحدى الطرق الكمية أو الطرق الإحصائية المستخدمة في تحليل المشكلات:", o: ["تحليل الوقت والحركة", "عينات العمل", "تدقيق العمل", "جميع ما سبق"], a: 3 },
+                    { q: "السبب الشائع لازدواجية العمل داخل المنظمات:", o: ["عندما يؤدي شخص أو أكثر أو وحدة منظمية أو أكثر نفس العمل أو نفس الأعمال", "عندما يؤدي شخصان أو أكثر أو وحدات منظمية نفس العمل كل على حده، وليسا مجتمعين", "عندما يكون بعض الناس مشغولون جداً وآخرون عاطلون", "تطبيق نظام موحد للعمل"], a: 1 },
+                    { q: "عندما يؤدي شخصان أو أكثر أو وحدات منظمة نفس العمل كل على حده، وليسا مجتمعين يكون هناك:", o: ["ازدواجية العمل", "تداخل العمل", "عدم اتساق العمل", "سوء توزيع عبء العمل"], a: 0 },
+                    { q: "........... عبارة عن منتج نهائي يتضمن معلومات ملخصة حول طبيعة النظام، وكيفية عمله، وكيفية تفاعل الأشخاص معه.", o: ["توثيق النظم", "تحليل النظم", "تنفيذ النظم", "عرض النتائج"], a: 0 }
+                ],
+                tf: [
+                    { q: "يعتبر توثيق النظم أداة فعالة في تحسين كفاءة اتخاذ القرار.", a: true },
+                    { q: "تحليل البيانات غير ضروري عند دراسة أسباب المشاكل التنظيمية.", a: false },
+                    { q: "يحدث سوء توزيع العمل عندما يكون بعض الناس مشغولون جداً وآخرون عاطلون، أو عندما يكون الناس مشغولون جداً في وقت، وعاطلون في أوقات أخرى.", a: true },
+                    { q: "يمكن أن تحدث العديد من المشكلات نتيجة للتخطيط المادي الذي لا يلائم نفسه مع العمل الواجب تنفيذه.", a: true },
+                    { q: "عندما تؤدي الطريقة الواحدة إلى نتائج مختلفة في نفس المشكلة، فإن ذلك يعني وجود اتساق.", a: false }
+                ]
+            },
+            s8: {
+                title: 'Section 8: مشكلات تحليل النظم',
+                mcq: [
+                    { q: "أي من الأنواع التالية يُعد من أنواع الاستبيانات؟", o: ["الشكل الحر", "الشكل الثابت", "أ، ب معًا", "لا شيء مما سبق"], a: 2 },
+                    { q: "ما يُميز الاستبيانات الحرة هو:", o: ["تحديد الإجابات مسبقًا", "إعطاء حرية للمستجيب في التعبير", "استخدام الاختيارات المغلقة", "أن تكون إلكترونية دائمًا"], a: 1 },
+                    { q: "الاستبيانات الثابتة تعتمد على:", o: ["الأسئلة المفتوحة فقط", "عدم ترتيب الأسئلة", "إجابات محددة مسبقًا", "الحذف والإضافة من المستجيب"], a: 2 },
+                    { q: "من مشكلات تحليل النظم المتعلقة بالعمل هي:", o: ["نقص في العملية", "ازدواجية العمل", "سوء برمجة الحاسب", "تقادم الأجهزة"], a: 1 },
+                    { q: "تحدث مشكلة التداخل في العمل عندما ..", o: ["لا يوجد تنسيق زمني", "يكون هناك أشخاص أو نظم تقوم بنفس العمل", "تنقطع الكهرباء", "يتم تجاهل خطوات العمل"], a: 1 },
+                    { q: "المشكلة الناتجة عن إعادة تنفيذ خطوات تم تنفيذها بالفعل تسمى:", o: ["عدم الدقة", "قصور في الوثائق", "العمل المتكرر", "الازدواجية"], a: 3 },
+                    { q: "من أمثلة سوء توزيع العمل:", o: ["وجود إجراءات محددة", "وجود أشخاص يعملون بجهد كبير وآخرين لا يعملون", "وجود إرشادات واضحة", "تحديد المهام بدقة"], a: 1 },
+                    { q: "من أبرز نتائج عدم دقة العمل:", o: ["وضوح النتائج", "تحسين الجودة", "نتائج غير صادقة", "تنفيذ مثالي"], a: 2 },
+                    { q: "يحدث قصور في ضوابط العمل عندما:", o: ["تكون القوانين دقيقة", "تنخفض جودة العمل", "تزداد الإنتاجية", "يتم تقييم الأداء بانتظام"], a: 1 },
+                    { q: "من أسباب قصور عمليات العمل:", o: ["وجود توجيهات واضحة", "تجاهل التدريب", "وجود قواعد بيانات دقيقة", "وضوح السياسات"], a: 1 },
+                    { q: "عندما لا توجد تعليمات توضح كيفية أداء العمل، فهذه مشكلة:", o: ["ازدواجية", "عدم دقة", "قصور عمليات", "تكرار"], a: 2 }
+                ]
+            },
+            s9: {
+                title: 'Section 9: خرائط التدفق والتوثيق',
+                mcq: [
+                    { q: "المقصود بخريطة التدفق:", o: ["تمثيل نصي للنظام", "تمثيل بصري للمشكلة", "وصف كتابي للنظام", "مستند إداري"], a: 1 },
+                    { q: "من فوائد خرائط التدفق:", o: ["تعقيد شرح المشكلة", "زيادة الوقت اللازم للعمل", "تسهيل فهم خطوات النظام", "إلغاء التوثيق"], a: 2 },
+                    { q: "تساعد خرائط التدفق في:", o: ["تقليل الفهم", "تحديد الأخطاء ومعالجتها", "تجاهل المشكلات", "إلغاء خطوات العمل"], a: 1 },
+                    { q: "التوثيق هو عملية:", o: ["تجاهل البيانات", "تحويل البيانات إلى مستندات دائمة", "تحليل البيانات فقط", "حذف السجلات"], a: 1 },
+                    { q: "من خطوات التوثيق:", o: ["إلغاء البيانات", "تنظيم تدفق البيانات", "إهمال التيارات المتحركة", "تجاوز إعداد التقارير"], a: 1 },
+                    { q: "لماذا يُعتبر التوثيق عملية مستمرة؟", o: ["لأنه يحدث لمرة واحدة", "لأنه يتم فقط عند حدوث خطأ", "لأنه يبدأ من فحص النظام ويستمر حتى بعد التنفيذ", "لأنه خاص بالمحاسبة فقط"], a: 2 },
+                    { q: "من فوائد التوثيق المستمر:", o: ["إعاقة الفهم بعد اكتمال النظام", "إرباك الإدارة", "مساعدة المحلل على فهم أفضل", "إهمال اللقاءات المهمة"], a: 2 },
+                    { q: "المقصود بتخطيط النظم هو:", o: ["تنفيذ العمل يدويا", "صياغة خطط منطقية للتعامل مع المشاكل", "إلغاء التحليل", "تجاهل البدائل"], a: 1 },
+                    { q: "تعتمد الأنظمة المميكنة على:", o: ["العامل البشري بالكامل", "الحظ", "الآلة بشكل أكبر", "المستندات الورقية فقط"], a: 2 },
+                    { q: "تعتمد الأنظمة غير المميكنة على:", o: ["الحاسب الآلي فقط", "الآلة بشكل كامل", "العامل البشري", "الذكاء الصناعي"], a: 2 }
+                ]
+            },
+            s10: {
+                title: 'Section 10: النظم المميكنة والتحول الرقمي',
+                mcq: [
+                    { q: "من إيجابيات النظم المميكنة:", o: ["زيادة الحاجة للموظفين", "تقليل سرعة المعالجة", "صعوبة الوصول للمعلومات", "تحسين سرعة تسجيل المعلومات"], a: 3 },
+                    { q: "من سلبيات النظم المميكنة:", o: ["انخفاض تكلفة الأجهزة", "الحاجة لتدريب فني", "سهولة الاستخدام دائما", "إلغاء التوثيق"], a: 1 },
+                    { q: "من سلبيات النظم المميكنة:", o: ["انخفاض أجور الفنيين", "سهولة إعادة تصميم النظام", "ارتفاع تكلفة الأجهزة", "إلغاء القيود"], a: 2 },
+                    { q: "الاتجاه الحالي في المنظمات هو:", o: ["الاعتماد على الورق", "العودة للأنظمة اليدوية", "التحول الرقمي", "تجاهل التقنية"], a: 2 },
+                    { q: "السبب في التوجه للتحول الرقمي:", o: ["زيادة التكلفة", "تجنب مميزات التقنية", "تقليل سلبيات الأنظمة المميكنة", "الاعتماد الكامل على الإنسان"], a: 2 }
+                ],
+                tf: [
+                    { q: "خريطة التدفق تُستخدم فقط للتوثيق وليس لتحليل المشكلات.", a: false },
+                    { q: "التوثيق عملية تبدأ مع فحص النظام وتستمر طوال مراحل التطوير.", a: true },
+                    { q: "من سلبيات النظم المميكنة أنها تقلل من سرعة الحصول على المعلومات.", a: false },
+                    { q: "النظم غير المميكنة تعتمد بدرجة أكبر على العامل البشري.", a: true },
+                    { q: "التخطيط للنظم هو عملية عشوائية بدون خطوات منطقية.", a: false }
+                ]
+            }
+        };
+
+        let currentSectionId = '';
+        let currentQuestions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let resultsChartInstance = null;
+
+        const selectionScreen = document.getElementById('selection-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultsScreen = document.getElementById('results-screen');
+        const sectionGrid = document.getElementById('section-grid');
+        
+        const quizTitleEl = document.getElementById('quiz-title');
+        const progressTextEl = document.getElementById('progress-text');
+        const questionTextEl = document.getElementById('question-text');
+        const optionsContainerEl = document.getElementById('options-container');
+        const nextButton = document.getElementById('next-button');
+        const scoreTextEl = document.getElementById('score-text');
+        const scorePercentageEl = document.getElementById('score-percentage');
+
+        function initializeApp() {
+            Object.keys(allQuizzes).forEach(key => {
+                const section = allQuizzes[key];
+                const button = document.createElement('button');
+                button.textContent = section.title;
+                button.className = "w-full bg-white text-blue-700 font-bold py-6 px-2 rounded-xl shadow-md border border-gray-200 hover:bg-blue-50 hover:border-blue-600 hover:shadow-lg transition-all duration-300 text-center text-lg";
+                button.onclick = () => startQuiz(key);
+                sectionGrid.appendChild(button);
+            });
+        }
+
+        function startQuiz(sectionId) {
+            currentSectionId = sectionId;
+            const mcq = allQuizzes[sectionId].mcq || [];
+            const tf = allQuizzes[sectionId].tf || [];
+            currentQuestions = [...mcq.map(q => ({...q, type: 'mcq'})), ...tf.map(q => ({...q, type: 'tf'}))];
+            
+            // Shuffle questions
+            currentQuestions.sort(() => Math.random() - 0.5);
+
+            currentQuestionIndex = 0;
+            score = 0;
+
+            showScreen('quiz-screen');
+            nextButton.classList.add('hidden');
+
+            quizTitleEl.textContent = allQuizzes[sectionId].title;
+            displayQuestion();
+        }
+        
+        function showScreen(screenId) {
+            selectionScreen.classList.add('hidden');
+            quizScreen.classList.add('hidden');
+            resultsScreen.classList.add('hidden');
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        function displayQuestion() {
+            if (currentQuestionIndex >= currentQuestions.length) {
+                showResults();
+                return;
+            }
+            const questionData = currentQuestions[currentQuestionIndex];
+            progressTextEl.textContent = `السؤال ${currentQuestionIndex + 1} من ${currentQuestions.length}`;
+            questionTextEl.textContent = questionData.q;
+            optionsContainerEl.innerHTML = '';
+            
+            if (questionData.type === 'mcq') {
+                optionsContainerEl.className = "space-y-4";
+                questionData.o.forEach((option, index) => {
+                    const button = document.createElement('button');
+                    button.innerHTML = `<span class="bg-blue-100 text-blue-700 font-bold px-3 py-1 rounded-md ml-3 text-base">${String.fromCharCode(1575 + index)}</span> ${option}`;
+                    button.className = "btn-answer w-full text-right p-4 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors duration-200 text-lg shadow-sm";
+                    button.onclick = () => selectAnswer(index, questionData.a, button);
+                    optionsContainerEl.appendChild(button);
+                });
+            } else { // trueFalse
+                optionsContainerEl.className = "grid grid-cols-1 sm:grid-cols-2 gap-4";
+                const options = [{text: 'صح', val: true}, {text: 'خطأ', val: false}];
+                options.forEach((option) => {
+                    const button = document.createElement('button');
+                    button.textContent = option.text;
+                    button.className = "btn-answer w-full p-4 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors duration-200 text-xl font-bold shadow-sm";
+                    button.onclick = () => selectAnswer(option.val, questionData.a, button);
+                    optionsContainerEl.appendChild(button);
+                });
+            }
+        }
+        
+        function selectAnswer(userAnswer, correctAnswer, clickedButton) {
+            const isCorrect = userAnswer === correctAnswer;
+            if (isCorrect) {
+                score++;
+            }
+            
+            const buttons = optionsContainerEl.getElementsByTagName('button');
+            Array.from(buttons).forEach((button) => {
+                button.disabled = true;
+                let optionValue;
+                if(currentQuestions[currentQuestionIndex].type === 'mcq') {
+                    // Extract option index from button's innerHTML (e.g., 'أ')
+                    const optionChar = button.querySelector('span')?.textContent.trim();
+                    const optionIndex = optionChar ? optionChar.charCodeAt(0) - 1575 : -1;
+                    optionValue = optionIndex;
+                } else {
+                    optionValue = (button.textContent === 'صح');
+                }
+
+                if (optionValue === correctAnswer) {
+                    button.classList.add('btn-correct');
+                } else if (button === clickedButton) {
+                    button.classList.add('btn-incorrect');
+                }
+            });
+            
+            nextButton.classList.remove('hidden');
+        }
+
+        function nextQuestion() {
+            currentQuestionIndex++;
+            displayQuestion();
+        }
+
+        function showResults() {
+            showScreen('results-screen');
+
+            const percentage = Math.round((score / currentQuestions.length) * 100);
+            scoreTextEl.textContent = `نتيجتك: ${score} من ${currentQuestions.length}`;
+            scorePercentageEl.textContent = `بنسبة ${percentage}%`;
+
+            const ctx = document.getElementById('results-chart').getContext('2d');
+            if(resultsChartInstance) {
+                resultsChartInstance.destroy();
+            }
+            resultsChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['إجابات صحيحة', 'إجابات خاطئة'],
+                    datasets: [{
+                        data: [score, currentQuestions.length - score],
+                        backgroundColor: ['#10b981', '#ef4444'], // Green for correct, Red for incorrect
+                        borderColor: ['#ffffff'],
+                        borderWidth: 5,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                font: {
+                                    family: "'Cairo', sans-serif",
+                                    size: 16
+                                },
+                                color: '#4b5563'
+                            }
+                        },
+                        tooltip: {
+                            bodyFont: { family: "'Cairo', sans-serif" },
+                            titleFont: { family: "'Cairo', sans-serif" }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function restartQuiz() {
+            startQuiz(currentSectionId);
+        }
+
+        function backToHome() {
+            showScreen('selection-screen');
+        }
+
+        // Initialize the application
+        initializeApp();
+
+    </script>
+</body>
+</html>
